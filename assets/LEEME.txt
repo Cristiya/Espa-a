@@ -1,0 +1,2 @@
+Pon aqui los PNG con los nombres exactos de ARTE.md.
+Cada imagen sustituye automaticamente a su dibujo por codigo.
