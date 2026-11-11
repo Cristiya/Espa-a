@@ -2,7 +2,7 @@
 
 Estilo decidido: **isométrico clásico** (tipo Commandos), **noche con luz cálida**, imágenes **generadas con IA** (o por un artista).
 
-El juego ya funciona sin ninguna imagen (todo se dibuja por código). Cada PNG que pongas en la carpeta `assets/` **sustituye automáticamente** a su dibujo por código. Puedes ir añadiéndolas poco a poco. En la pantalla de briefing verás `Gráficos: N de 66 imágenes cargadas`.
+El juego ya funciona sin ninguna imagen (todo se dibuja por código). Cada PNG que pongas en la carpeta `assets/` **sustituye automáticamente** a su dibujo por código. Puedes ir añadiéndolas poco a poco. En la pantalla de briefing verás `Gráficos: N de 70 imágenes cargadas`.
 
 ---
 
@@ -152,6 +152,25 @@ Prompts (con el prefijo común y `facing down-right ... no insignia, on a plain 
 1930s Spanish Civil Guard soldier, olive green uniform, black tricorn hat, bolt-action rifle, leather belts
 1930s Spanish militiaman, dark blue shirt, dark side cap, bolt-action rifle, no insignia
 1930s Spanish Carlist volunteer, red beret, khaki uniform, bolt-action rifle, no insignia
+
+
+### F. Retratos de personaje (tarjetas de la parte inferior)
+Opcionales. Si existe `portrait_<personaje>.png` en `assets/`, se muestra junto al nombre en la tarjeta del personaje. Se recorta automáticamente a cabeza y hombros (zona central y alta), así que conviene un retrato **de busto, centrado, con fondo blanco o liso**.
+
+| Archivo | Tamaño orientativo | Personaje |
+|---|---|---|
+| `portrait_minero.png` | 576×800 (la proporción es lo importante) | Minero asturiano |
+| `portrait_tirador.png` | igual | Tirador aragonés |
+| `portrait_enlace.png` | igual | Enlace del pueblo |
+| `portrait_maquinista.png` | igual | Maquinista (misión 2) |
+
+**Diseño del minero (referencia aportada):** hombre de unos 30 años, pelo corto castaño, barba de pocos días, camisa de rayas finas con las mangas remangadas y peto de trabajo con tirantes, manos ásperas. Sin gorra. El sprite del juego sigue este diseño.
+
+Prompt para los demás retratos (mismo estilo que el del minero):
+```
+painted half-body portrait, 1930s Spanish worker, realistic, muted earthy palette, soft light, plain white background, no text
+```
+> Si usas una imagen generada o de otra persona, comprueba que tengas derechos para usarla en el juego.
 
 ---
 
