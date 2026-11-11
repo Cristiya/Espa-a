@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>España · Preparar imágenes</title>
+<style>
+  :root{--bg:#15130e;--panel:#26211a;--ink:#e8dcc0;--mute:#a79c80;--acc:#c9a24b}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:Georgia,serif;padding:20px 16px 40px;max-width:980px;margin:0 auto}
+  h1{color:var(--acc);letter-spacing:.12em;font-size:22px;margin:0 0 4px}
+  p{color:var(--mute);line-height:1.5;font-size:14px;margin:6px 0}
+  #drop{display:block;border:2px dashed #5a4d33;border-radius:6px;padding:34px;text-align:center;margin:16px 0;color:var(--mute);cursor:pointer}
+  #drop.over{border-color:var(--acc);color:var(--ink)}
+  button,select{font:inherit;font-size:13px;background:var(--panel);color:var(--ink);border:1px solid #5a4d33;padding:6px 10px;border-radius:3px;cursor:pointer}
+  button.main{background:var(--acc);color:#15130e;border:0;font-weight:bold}
+  #list{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px;margin-top:12px}
+  .card{background:var(--panel);border:1px solid #3b3322;border-radius:4px;padding:10px}
+  .card canvas{max-width:100%;display:block;margin:0 auto 8px;background:repeating-conic-gradient(#3a3428 0 25%,#2c281f 0 50%) 0 0/16px 16px;border:1px solid #000}
+  .row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:4px 0;font-size:12px;color:var(--mute)}
+  .row select{flex:1;min-width:0}
+  .ok{color:#8fc27a}
+  input[type=range]{width:110px}
+</style>
+</head>
+<body>
+<h1>Preparar imágenes para España</h1>
+<p>Arrastra aquí las imágenes que hayas generado. Elige a qué pieza corresponde cada una y la herramienta la <b>recorta o ajusta a la medida exacta</b>, puede <b>quitar un fondo liso</b> y la descarga con el <b>nombre correcto</b>. Después copia los archivos a la carpeta <code>assets/</code> junto a <code>index.html</code>.</p>
+<p>Todo ocurre en tu navegador: las imágenes no se suben a ningún sitio.</p>
+<label id="drop">Suelta las imágenes aquí o haz clic para elegirlas<input id="file" type="file" accept="image/*" multiple hidden></label>
+<div><button class="main" id="all">Descargar todas</button> <span id="count" style="color:var(--mute);font-size:13px"></span></div>
+<div id="list"></div>
+
+<script>
+const SPEC={};
+const add=(n,w,h)=>SPEC[n]=[w,h];
+['tex_ground_dirt','tex_ground_cobble','tex_ground_snow','tex_snow_trodden'].forEach(n=>add(n,256,256));
+['tex_wall_house','tex_wall_church','tex_wall_depot','tex_wall_hall','tex_wall_station','tex_wall_shed'].forEach(n=>add(n,256,192));
+['tex_roof_house_a','tex_roof_house_b','tex_roof_church','tex_roof_depot','tex_roof_hall','tex_roof_snow_a','tex_roof_snow_b','tex_roof_station','tex_roof_signal'].forEach(n=>add(n,256,256));
+add('door_house',64,110);add('door_depot',128,110);add('window_dark',48,64);add('window_lit',48,64);
+add('prop_crate',64,56);add('prop_sandbag',64,44);add('prop_truck',160,112);add('prop_lamp',32,64);add('prop_pole',32,96);add('cuerpo_soldado',64,32);
+for(const u of ['minero','tirador','enlace','soldado','ametrallador','maquinista'])for(const d of ['se','sw','nw','ne'])add('char_'+u+'_'+d,48,72);
+const names=Object.keys(SPEC);
+const items=[];
+const $=id=>document.getElementById(id);
+
+function guess(fn){
+  const f=fn.toLowerCase().replace(/\.[a-z]+$/,'');
+  const exact=names.find(n=>f===n);if(exact)return exact;
+  const part=names.filter(n=>f.includes(n)).sort((a,b)=>b.length-a.length)[0];
+  return part||names[0];
+}
+function mode(name){return name.startsWith('tex_')?'cover':'contain'}
+
+function render(it){
+  const [w,h]=SPEC[it.name],cv=it.cv;cv.width=w;cv.height=h;
+  const g=cv.getContext('2d');g.clearRect(0,0,w,h);
+  const iw=it.img.naturalWidth,ih=it.img.naturalHeight;
+  let s,x,y;
+  if(it.mode==='cover'){s=Math.max(w/iw,h/ih);x=(w-iw*s)/2;y=(h-ih*s)/2}
+  else if(it.mode==='stretch'){g.drawImage(it.img,0,0,w,h);s=0}
+  else{s=Math.min(w/iw,h/ih);x=(w-iw*s)/2;y=h-ih*s}
+  if(s)g.drawImage(it.img,x,y,iw*s,ih*s);
+  if(it.bg){
+    const t=document.createElement('canvas');t.width=t.height=1;
+    const tg=t.getContext('2d');tg.drawImage(it.img,0,0,1,1,0,0,1,1);
+    const [r0,g0,b0]=tg.getImageData(0,0,1,1).data;
+    const d=g.getImageData(0,0,w,h),a=d.data,tol=it.tol;
+    for(let i=0;i<a.length;i+=4){
+      const dist=Math.hypot(a[i]-r0,a[i+1]-g0,a[i+2]-b0);
+      if(dist<tol)a[i+3]=0;else if(dist<tol*1.5)a[i+3]=a[i+3]*(dist-tol)/(tol*.5);
+    }
+    g.putImageData(d,0,0);
+  }
+  it.info.textContent=w+'×'+h+' px → '+it.name+'.png';
+}
+function addItem(file){
+  const img=new Image(),url=URL.createObjectURL(file);
+  img.onload=()=>{
+    const name=guess(file.name),card=document.createElement('div');card.className='card';
+    card.innerHTML=`<canvas></canvas>
+      <div class="row">Pieza: <select class="nm">${names.map(n=>`<option ${n===name?'selected':''}>${n}</option>`).join('')}</select></div>
+      <div class="row">Ajuste: <select class="md"><option value="cover">Recortar al centro (texturas)</option><option value="contain">Ajustar entero (personajes y props)</option><option value="stretch">Estirar</option></select></div>
+      <div class="row"><label><input type="checkbox" class="bg"> Quitar fondo liso</label> <input type="range" class="tol" min="10" max="140" value="50"></div>
+      <div class="row ok info"></div>
+      <div class="row"><button class="dl main">Descargar</button> <button class="rm">Quitar</button></div>`;
+    const it={img,name,mode:mode(name),bg:false,tol:50,cv:card.querySelector('canvas'),info:card.querySelector('.info')};
+    items.push(it);$('list').appendChild(card);
+    card.querySelector('.md').value=it.mode;
+    card.querySelector('.nm').onchange=e=>{it.name=e.target.value;it.mode=mode(it.name);card.querySelector('.md').value=it.mode;render(it)};
+    card.querySelector('.md').onchange=e=>{it.mode=e.target.value;render(it)};
+    card.querySelector('.bg').onchange=e=>{it.bg=e.target.checked;render(it)};
+    card.querySelector('.tol').oninput=e=>{it.tol=+e.target.value;if(it.bg)render(it)};
+    card.querySelector('.dl').onclick=()=>save(it);
+    card.querySelector('.rm').onclick=()=>{items.splice(items.indexOf(it),1);card.remove();upd()};
+    render(it);upd();
+  };
+  img.src=url;
+}
+function save(it){
+  it.cv.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=it.name+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)},'image/png');
+}
+function upd(){$('count').textContent=items.length?items.length+' imagen(es) lista(s)':''}
+function handle(files){for(const f of files)if(f.type.startsWith('image/'))addItem(f)}
+$('file').onchange=e=>handle(e.target.files);
+const dz=$('drop');
+dz.ondragover=e=>{e.preventDefault();dz.classList.add('over')};
+dz.ondragleave=()=>dz.classList.remove('over');
+dz.ondrop=e=>{e.preventDefault();dz.classList.remove('over');handle(e.dataTransfer.files)};
+$('all').onclick=()=>items.forEach((it,i)=>setTimeout(()=>save(it),i*350));
+</script>
+</body>
+</html>

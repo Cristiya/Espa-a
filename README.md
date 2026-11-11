@@ -19,3 +19,5 @@ Abre `index.html` en el navegador (o sírvelo con `python -m http.server`).
 ## Gráficos
 
 Todo se dibuja por código. Cada PNG colocado en `assets/` con el nombre exacto de [ARTE.md](ARTE.md) sustituye automáticamente a su dibujo.
+
+Para preparar y nombrar las imágenes generadas con IA, abre `herramienta_imagenes.html`. La guía paso a paso está en [PACK_INICIAL.md](PACK_INICIAL.md).

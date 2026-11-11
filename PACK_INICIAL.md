@@ -4,6 +4,14 @@ Objetivo: con solo **6 imágenes** vas a notar un salto claro en el aspecto del 
 
 Las medidas, el estilo completo y el resto de prompts están en [ARTE.md](ARTE.md). Esta ficha es el camino corto.
 
+## Camino gratuito (recomendado si no quieres pagar)
+1. **Elige una herramienta con prueba gratuita.** Hay varias que dan algunos créditos o imágenes gratis cada día (por ejemplo Leonardo, o los creadores de imágenes de Microsoft Designer / Copilot). Las condiciones cambian, así que comprueba qué te ofrecen y qué permiten hacer con las imágenes si luego vas a publicar el juego.
+2. **Genera las piezas con los prompts de abajo.** Pide a la IA **varias versiones** de cada una y elige la mejor.
+3. **Abre `herramienta_imagenes.html`** (doble clic, está junto al juego). Arrastra tus imágenes: la herramienta propone el nombre, las **recorta o ajusta a la medida exacta**, puede **quitar el fondo liso verde** de los personajes y las descarga ya con el **nombre correcto**.
+4. **Copia los PNG descargados a la carpeta `assets/`** y recarga el juego. El briefing dirá cuántas se han cargado.
+
+> Truco del fondo: las IA gratuitas casi nunca dan fondo transparente. Por eso los prompts de personajes y cajas piden "fondo verde liso"; luego marcas **Quitar fondo liso** en la herramienta y ajustas el deslizador hasta que desaparezca el verde sin comerse el personaje.
+
 ## Antes de empezar (2 minutos)
 1. Elige una herramienta de imágenes (Midjourney, Leonardo, Scenario, DALL·E, Stable Diffusion...). Mira que su licencia permita uso comercial si vas a publicar el juego.
 2. Copia este **prefijo de estilo** y úsalo delante de todos los prompts:
@@ -42,19 +50,19 @@ pre-rendered isometric tactical stealth game asset, 2:1 isometric camera, hand-p
 {PREFIJO}, seamless tileable texture, orthographic top-down view, packed dirt street with small pebbles and cart tracks
 ```
 
-**4. Soldado** (fondo transparente o liso para quitarlo después)
+**4. Soldado** (sobre fondo verde liso: la herramienta lo quita después)
 ```
-{PREFIJO}, isometric 2:1 view, full body small game character sprite, standing, facing down-right, Spanish soldier 1937, khaki uniform, steel helmet, leather ammunition belts, bolt-action rifle, no insignia, transparent background
+{PREFIJO}, isometric 2:1 view, full body small game character sprite, standing, facing down-right, Spanish soldier 1937, khaki uniform, steel helmet, leather ammunition belts, bolt-action rifle, no insignia, on a plain solid bright green background, no ground shadow
 ```
 
 **5. Minero**
 ```
-{PREFIJO}, isometric 2:1 view, full body small game character sprite, standing, facing down-right, Asturian miner 1937, dark work clothes and cap, satchel of dynamite sticks, knife on belt, transparent background
+{PREFIJO}, isometric 2:1 view, full body small game character sprite, standing, facing down-right, Asturian miner 1937, dark work clothes and cap, satchel of dynamite sticks, knife on belt, on a plain solid bright green background, no ground shadow
 ```
 
 **6. Caja**
 ```
-{PREFIJO}, isometric 2:1 view, wooden supply crate, transparent background
+{PREFIJO}, isometric 2:1 view, wooden supply crate, on a plain solid bright green background, no ground shadow
 ```
 
 ## Dónde guardarlas
