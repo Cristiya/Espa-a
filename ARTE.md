@@ -2,7 +2,7 @@
 
 Estilo decidido: **isométrico clásico** (tipo Commandos), **noche con luz cálida**, imágenes **generadas con IA** (o por un artista).
 
-El juego ya funciona sin ninguna imagen (todo se dibuja por código). Cada PNG que pongas en la carpeta `assets/` **sustituye automáticamente** a su dibujo por código. Puedes ir añadiéndolas poco a poco. En la pantalla de briefing verás `Gráficos: N de 54 imágenes cargadas`.
+El juego ya funciona sin ninguna imagen (todo se dibuja por código). Cada PNG que pongas en la carpeta `assets/` **sustituye automáticamente** a su dibujo por código. Puedes ir añadiéndolas poco a poco. En la pantalla de briefing verás `Gráficos: N de 66 imágenes cargadas`.
 
 ---
 
@@ -136,6 +136,22 @@ seamless tileable texture, orthographic top-down view, terracotta roof tiles cov
 isometric 2:1 view, full body small game character sprite, standing, facing down-right, 1930s Spanish railway worker, blue overalls, peaked cap, lantern, transparent background
 ```
 > De momento el **tren, la locomotora, los carriles, la torre de agua, la dresina y el foco** se dibujan por código. Si quieres arte para ellos, dímelo y añado soporte de imágenes (`prop_locomotora`, `prop_vagon`, `prop_dresina`...).
+
+
+### E. Tipos de defensor (aspecto histórico aproximado)
+Variantes del soldado enemigo. **Opcionales**: si no pones imágenes de estas, el juego usa el sprite `char_soldado_*`. Detalles y límites de la fidelidad en [UNIFORMES_Y_ARMAS.md](UNIFORMES_Y_ARMAS.md).
+
+| Archivo | Tamaño | Qué es |
+|---|---|---|
+| `char_guardia_se/sw/nw/ne.png` | 48×72 | Guardia civil: uniforme verde oliva, **tricornio negro**, fusil Mauser, correaje |
+| `char_falange_se/sw/nw/ne.png` | 48×72 | Falangista: **camisa azul**, gorro oscuro, fusil Mauser |
+| `char_requete_se/sw/nw/ne.png` | 48×72 | Requeté: **boina roja**, uniforme caqui apagado, fusil Mauser |
+
+Prompts (con el prefijo común y `facing down-right ... no insignia, on a plain solid bright green background`):
+```
+1930s Spanish Civil Guard soldier, olive green uniform, black tricorn hat, bolt-action rifle, leather belts
+1930s Spanish militiaman, dark blue shirt, dark side cap, bolt-action rifle, no insignia
+1930s Spanish Carlist volunteer, red beret, khaki uniform, bolt-action rifle, no insignia
 
 ---
 

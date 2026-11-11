@@ -76,7 +76,7 @@
 </div>
 <div id="help">
   <b>Controles:</b> clic izquierdo = seleccionar / ejecutar acción activa · clic derecho = mover, cancelar, o <b>entrar en una casa</b> (clic derecho sobre ella: te escondes dentro; otro clic derecho para salir) · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> personaje · <kbd>Esc</kbd> cancela · cámara: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / flechas / bordes de pantalla / minimapa · <kbd>Q</kbd> centra en el personaje.<br>
-  <b>Claves:</b> los muros bloquean la visión · la luz de las farolas te delata antes (el tirador puede apagarlas de un disparo) · agachado te ven menos pero vas más lento · los cuerpos descubiertos dan la alarma · <kbd>U</kbd> te pone el uniforme de un soldado abatido (a cuchillo o a tiros, no por la explosión): solo te reconocen de muy cerca, pero no funciona cerca del almacén y se pierde al disparar o si te ven actuar · <b>Misión 2:</b> tus pasos dejan huellas en la nieve; pisa andén, vías y caminos para no dejar rastro · <kbd>L</kbd> palanca de agujas (solo el maquinista, dentro de la cabina).
+  <b>Claves:</b> los muros bloquean la visión · la luz de las farolas te delata antes (el tirador puede apagarlas de un disparo) · agachado te ven menos pero vas más lento · los cuerpos descubiertos dan la alarma · <kbd>U</kbd> te pone el uniforme de un soldado abatido (a cuchillo o a tiros, no por la explosión): solo te reconocen de muy cerca, pero no funciona cerca del almacén y se pierde al disparar o si te ven actuar · <b>Refuerzos:</b> si salta la alarma y el teléfono no está cortado, llegan 3 soldados en 25 s · un fusil de cerrojo tarda en recargar y las heridas te ralentizan · <b>Misión 2:</b> tus pasos dejan huellas en la nieve; pisa andén, vías y caminos para no dejar rastro · <kbd>L</kbd> palanca de agujas (solo el maquinista, dentro de la cabina).
 </div>
 
 <script>
@@ -188,9 +188,11 @@ function sfx(k){
 
 /* ---------- estado ---------- */
 let chars,enemies,bodies,fx,logs,gs,armed,sel,plant,depotDown,paused,tClock,marker,tLeft,docs,phoneCut,st,prevAlert,diff=2;
-const DIFF={1:{det:.7,dmg:20,name:'Fácil'},2:{det:1,dmg:30,name:'Normal'},3:{det:1.35,dmg:38,name:'Difícil'}};
+const DIFF={1:{det:.7,dmg:30,name:'Fácil'},2:{det:1,dmg:45,name:'Normal'},3:{det:1.35,dmg:60,name:'Difícil'}};
+// aspecto aproximado de cada tipo de defensor (ver UNIFORMES_Y_ARMAS.md)
+const KINDS={soldado:{col:'#667050',helm:'#4c5240'},falange:{col:'#3f5c8a',helm:'#202028'},guardia:{col:'#55603f',helm:'#14141a'},requete:{col:'#6a6845',helm:'#a8322a'},jefe:{col:'#3b4a5a',helm:'#1b1b22'}};
 let mouse={x:0,y:0};
-let train=null,trainT=0,trainStopped=false,trainDown=false,switchSiding=false,hasKey=false,freed=false,horario=false,prints=[],printN=0,spots=[],blizT=1e9,blizOn=false,flakes=[],fdt=.016,trainWarn=false,chimT=0;
+let train=null,trainT=0,trainStopped=false,trainDown=false,switchSiding=false,hasKey=false,freed=false,horario=false,prints=[],printN=0,spots=[],blizT=1e9,blizOn=false,flakes=[],fdt=.016,trainWarn=false,chimT=0,reinfT=null,reinfCalled=false,alarmPos=null;
 const PRINT_LIFE={1:60,2:100,3:150};
 function mkChar(name,role,col,letter,x,y,extra){return Object.assign({name,role,col,letter,...tc(x,y),hp:100,path:[],task:null,chan:null,dead:false,hidden:false,crouch:false,disguise:false,face:-Math.PI/2,mx:0,my:0},extra)}
 function mkEnemy(wps,sentry,base,extra){
@@ -203,7 +205,7 @@ const inExit=c=>!c.dead&&!c.hidden&&exitZ&&c.x>=exitZ.x&&c.x<=exitZ.x+exitZ.w&&c
 /* ===== Misión 1: Belchite ===== */
 const M1={
   id:'m1',n:1,title:'Belchite',date:'24 de agosto de 1937',headline:'MISIÓN 1 · BELCHITE · 24 DE AGOSTO DE 1937',limit:540,
-  exitLabel:'ARCO DE SAN ROQUE',
+  exitLabel:'ARCO DE SAN ROQUE',reinf:[[3,20],[46,20]],
   ground:{base:'tex_ground_dirt',specks:['70,52,30','230,210,160'],plaza:[{x:12*T,y:9*T,w:12*T,h:9*T},{x:32*T,y:9*T,w:15*T,h:4*T}]},
   dark:{col:'6,10,32',a:.52},
   firstMsg:'Vuela el almacén de San Agustín y sal por el Arco de San Roque antes del amanecer.',
@@ -225,13 +227,13 @@ const M1={
     exitZ:{x:47*T,y:19*T,w:2*T,h:4*T}}},
   chars(){return[
     mkChar('Minero asturiano','Dinamita y sabotaje','#c0572f','M',1,20,{dyn:1,knife:true}),
-    mkChar('Tirador aragonés','Fusil de precisión','#4a7fa8','T',1,21,{ammo:6,cd:0}),
+    mkChar('Tirador aragonés','Fusil Mosin-Nagant','#4a7fa8','T',1,21,{ammo:5,cd:0}),
     mkChar('Enlace del pueblo','Piedras y cuchillo','#7a9a4a','E',1,22,{stones:5,knife:true})]},
   enemies(){return[
-    mkEnemy([[14,20],[44,20]]),mkEnemy([[13,12],[22,15]]),mkEnemy([[30,4],[30,18]]),
-    mkEnemy([[33,11],[45,11]]),mkEnemy([[3,29],[46,29]]),
-    mkEnemy([[44,10]],true,Math.PI),mkEnemy([[47,17]],true,Math.PI/2),
-    mkEnemy([[13,17]],true,0,{mg:true,R:230,fov:.95})]},
+    mkEnemy([[14,20],[44,20]],false,0,{kind:'guardia'}),mkEnemy([[13,12],[22,15]],false,0,{kind:'falange'}),mkEnemy([[30,4],[30,18]],false,0,{kind:'falange'}),
+    mkEnemy([[33,11],[45,11]],false,0,{kind:'requete'}),mkEnemy([[3,29],[46,29]],false,0,{kind:'guardia'}),
+    mkEnemy([[44,10]],true,Math.PI,{kind:'requete'}),mkEnemy([[47,17]],true,Math.PI/2,{kind:'guardia'}),
+    mkEnemy([[13,17]],true,0,{mg:true,R:230,fov:.95,kind:'requete'})]},
   restricted:t=>distRect(t,dep)<130,
   plantCheck:c=>distRect(c,dep)>55?'Acércate a la pared del almacén para colocar la carga.':null,
   explode(){
@@ -292,7 +294,7 @@ function track(g,P,x0,y0,x1,y1){
   polyG(g,q(u0,u1,c-11,c+11),'rgba(255,255,255,.12)');
 }
 const M2={
-  id:'m2',n:2,title:'La estación de Teruel',date:'14-15 de diciembre de 1937',headline:'MISIÓN 2 · LA ESTACIÓN · TERUEL · 14-15 DE DICIEMBRE DE 1937',limit:660,snow:true,prints:true,exitLabel:'DRESINA',
+  id:'m2',n:2,title:'La estación de Teruel',date:'14-15 de diciembre de 1937',headline:'MISIÓN 2 · LA ESTACIÓN · TERUEL · 14-15 DE DICIEMBRE DE 1937',limit:660,snow:true,prints:true,exitLabel:'DRESINA',reinf:[[2,21],[46,21]],
   ground:{base:'tex_ground_snow',specks:['110,130,160','255,255,255']},
   dark:{col:'8,14,44',a:.48},
   firstMsg:'Libera al maquinista, desvía el tren y vuela los vagones antes del amanecer.',
@@ -310,13 +312,13 @@ const M2={
     exitZ:{x:45*T,y:13*T,w:4*T,h:3*T}}},
   chars(){return[
     mkChar('Minero asturiano','Dinamita y sabotaje','#c0572f','M',1,1,{dyn:1,knife:true}),
-    mkChar('Tirador aragonés','Fusil de precisión','#4a7fa8','T',2,1,{ammo:6,cd:0}),
+    mkChar('Tirador aragonés','Fusil Mosin-Nagant','#4a7fa8','T',2,1,{ammo:5,cd:0}),
     mkChar('Enlace del pueblo','Piedras y cuchillo','#7a9a4a','E',1,2,{stones:5,knife:true})]},
   enemies(){return[
-    mkEnemy([[2,21],[46,21]]),mkEnemy([[14,13],[34,13]]),mkEnemy([[14,18],[34,18]]),mkEnemy([[25,2],[25,29]]),
-    mkEnemy([[18,13],[23,13]],false,0,{jefe:true}),
-    mkEnemy([[31,8]],true,Math.PI/2,{mg:true,R:230,fov:.95}),
-    mkEnemy([[44,12]],true,Math.PI/2),mkEnemy([[7,18]],true,0)]},
+    mkEnemy([[2,21],[46,21]],false,0,{kind:'guardia'}),mkEnemy([[14,13],[34,13]],false,0,{kind:'falange'}),mkEnemy([[14,18],[34,18]],false,0,{kind:'falange'}),mkEnemy([[25,2],[25,29]],false,0,{kind:'requete'}),
+    mkEnemy([[18,13],[23,13]],false,0,{jefe:true,kind:'jefe'}),
+    mkEnemy([[31,8]],true,Math.PI/2,{mg:true,R:230,fov:.95,kind:'requete'}),
+    mkEnemy([[44,12]],true,Math.PI/2,{kind:'guardia'}),mkEnemy([[7,18]],true,0,{kind:'falange'})]},
   initState(){
     trainT=DIFFT[diff];blizT=40+Math.random()*30;
     spots=[{x:45*T+10,y:10*T+10,base:2.2,amp:.9,ph:0,R:270,fov:.5,face:2.2,on:true,detect:0,state:'patrol',spot:true,cd:0}];
@@ -383,6 +385,24 @@ const M2={
 const MS={m1:M1,m2:M2};
 
 /* ---- mecánicas de la misión 2 ---- */
+function alarmRaised(p){
+  alarmPos={x:p.x,y:p.y};
+  if(reinfCalled||phoneCut||!L.reinf)return;
+  reinfCalled=true;reinfT=25;
+  say('¡Han pedido refuerzos por teléfono! Llegarán en 25 segundos.');
+}
+function spawnReinf(){
+  if(!alarmPos||gs!=='play')return;
+  const d=q=>{const t=tc(q[0],q[1]);return Math.hypot(t.x-alarmPos.x,t.y-alarmPos.y)};
+  const sp=L.reinf.slice().sort((a,b)=>d(b)-d(a))[0],base=tc(sp[0],sp[1]),kinds=['falange','requete','guardia'];
+  for(let i=0;i<3;i++){
+    const e=mkEnemy([[sp[0],sp[1]]],false,0,{kind:kinds[i]});
+    e.x=base.x+i*8;e.y=base.y;e.wps=[{x:base.x,y:base.y},{x:alarmPos.x,y:alarmPos.y}];
+    e.state='alert';e.last={x:alarmPos.x,y:alarmPos.y};e.tSeen=0;e.detect=1;
+    enemies.push(e);bark(e,'¡Refuerzos! ¡Que no escapen!');
+  }
+  say('¡Llegan refuerzos!');sfx('alarm');
+}
 function updTrain(dt){
   if(!train){
     trainT-=dt;
@@ -469,7 +489,7 @@ function init(){
   L=curM||M1;setupMap(L.build());
   chars=L.chars();enemies=L.enemies();
   bodies=[];fx=[];logs=[];armed=null;sel=0;plant=null;depotDown=false;paused=false;tClock=0;marker=null;tLeft=L.limit;docs=false;phoneCut=false;prevAlert=false;
-  train=null;trainT=0;trainStopped=false;trainDown=false;switchSiding=false;hasKey=false;freed=false;horario=false;prints=[];printN=0;spots=[];blizT=1e9;blizOn=false;trainWarn=false;
+  train=null;trainT=0;trainStopped=false;trainDown=false;switchSiding=false;hasKey=false;freed=false;horario=false;prints=[];printN=0;spots=[];blizT=1e9;blizOn=false;trainWarn=false;reinfT=null;reinfCalled=false;alarmPos=null;
   st={alarms:0,kills:0,shots:0,hidden:0};
   for(const l of lamps)l.on=true;
   if(L.initState)L.initState();
@@ -490,7 +510,7 @@ function investigate(e,x,y,wait,body,line){
 }
 function noise(x,y,r,src,line){for(const o of enemies)if(o!==src&&!o.dead&&Math.hypot(o.x-x,o.y-y)<r)investigate(o,x,y,3,null,line||'¿Qué ha sido eso?')}
 function alertNear(e,r){for(const o of enemies)if(!o.dead&&o!==e&&o.state!=='alert'&&dist(o,e)<r){o.state='alert';o.last={...e.last};o.tSeen=0;o.path=[];bark(o,'¡Alarma!')}}
-function killEnemy(e,how,byPlayer,noUniform){e.dead=true;e.state='dead';bodies.push({x:e.x,y:e.y,found:false,uniform:!noUniform,key:!!e.jefe});fx.push({k:'x',x:e.x,y:e.y,t:.4});if(byPlayer)st.kills++;if(how)say(how)}
+function killEnemy(e,how,byPlayer,noUniform){e.dead=true;e.state='dead';bodies.push({x:e.x,y:e.y,found:false,uniform:!noUniform,key:!!e.jefe,kind:e.kind||'soldado'});fx.push({k:'x',x:e.x,y:e.y,t:.4});if(byPlayer)st.kills++;if(how)say(how)}
 function hurt(c,dmg){c.hp-=dmg;if(c.hp<=0&&!c.dead){c.dead=true;c.hp=0;say(c.name+' ha caído.');if(gs==='play')end(false,c.name+' ha caído. En una operación así no hay segundas oportunidades... salvo reintentarlo.')}}
 function explode(){L.explode()}
 
@@ -513,7 +533,7 @@ function updEnemy(e,dt){
     const before=e.detect;e.detect=Math.min(1.2,e.detect+dt*Math.max(.1,rate));
     if(before<.3&&e.detect>=.3&&e.state!=='alert')bark(e,'¿Quién va?');
     if(e.detect>.3)turn(e,Math.atan2(tgt.y-e.y,tgt.x-e.x),5*dt);
-    if(e.detect>=1&&e.state!=='alert'){e.state='alert';e.last={x:tgt.x,y:tgt.y};e.tSeen=0;e.path=[];bark(e,'¡Alto! ¡Alarma!');sfx('alarm');alertNear(e,phoneCut?60:170)}
+    if(e.detect>=1&&e.state!=='alert'){e.state='alert';e.last={x:tgt.x,y:tgt.y};e.tSeen=0;e.path=[];bark(e,'¡Alto! ¡Alarma!');sfx('alarm');alertNear(e,phoneCut?60:170);alarmRaised(tgt)}
   }else e.detect=Math.max(0,e.detect-dt*.4);
 
   if(e.state==='patrol'){
@@ -549,12 +569,14 @@ function updEnemy(e,dt){
     if(tgt){
       e.last={x:tgt.x,y:tgt.y};e.tSeen=0;turn(e,Math.atan2(tgt.y-e.y,tgt.x-e.x),8*dt);
       if(!e.mg){
-        if(bd>110){e.rep-=dt;if(e.rep<=0||!e.path.length){e.path=findPath(e.x,e.y,tgt.x,tgt.y);e.rep=.4}moveAlong(e,88,dt)}else e.path=[];
+        if(bd>110){e.rep-=dt;if(e.rep<=0||!e.path.length){
+          const dl=Math.hypot(tgt.x-e.x,tgt.y-e.y)||1,fl=e.flank||(e.flank=Math.random()<.5?-1:1),fx=tgt.x+(-(tgt.y-e.y)/dl)*55*fl,fy=tgt.y+((tgt.x-e.x)/dl)*55*fl;
+          const fpt=free(fx/T|0,fy/T|0)?{x:fx,y:fy}:tgt;e.path=findPath(e.x,e.y,fpt.x,fpt.y);e.rep=.4}moveAlong(e,88,dt)}else e.path=[];
       }
       if(e.shootCd<=0){
         e.shootCd=e.mg?.3:.9+Math.random()*.4;
         fx.push({k:'tr',x1:e.x,y1:e.y,x2:tgt.x,y2:tgt.y,t:.1});sfx('shot');
-        if(Math.random()<Math.max(.12,(e.mg?.55:.7)-bd/e.R*.45))hurt(tgt,e.mg?D.dmg*.6:D.dmg);
+        if(Math.random()<Math.max(.12,(e.mg?.55:.7)-bd/e.R*.45))hurt(tgt,e.mg?D.dmg*.7:D.dmg);
         noise(e.x,e.y,phoneCut?110:220,e,'¡Disparos!');
       }
     }else{
@@ -582,7 +604,11 @@ function updChar(c,dt){
   if(c.task&&c.task.type==='knife'){
     const e=c.task.t;
     if(e.dead)c.task=null;
-    else if(dist(c,e)<26){killEnemy(e,'Eliminado en silencio.',true);sfx('knife');c.task=null;c.path=[];breakIfSeen(c)}
+    else if(dist(c,e)<26){
+      const front=Math.abs(wrap(Math.atan2(c.y-e.y,c.x-e.x)-e.face))<1.1&&e.state!=='alert';
+      killEnemy(e,front?'Forcejeo: se ha oído algo.':'Eliminado por la espalda, en silencio.',true);sfx('knife');
+      if(front)noise(e.x,e.y,150,e,'¿Qué ha sido eso?');
+      c.task=null;c.path=[];breakIfSeen(c)}
     else{c.rep=(c.rep||0)-dt;if(c.rep<=0||!c.path.length){c.path=findPath(c.x,c.y,e.x,e.y);c.rep=.3}}
   }
   if(c.task&&c.task.type==='enter'){
@@ -594,7 +620,7 @@ function updChar(c,dt){
     }else if(!c.path.length)c.task=null;
   }
   const ox=c.x,oy=c.y;
-  if(moveAlong(c,c.crouch?42:85,dt)){
+  if(moveAlong(c,(c.crouch?42:85)*(c.hp<50?.65:1),dt)){
     c.face=Math.atan2(c.my,c.mx);
     if(L.prints){c.pd=(c.pd||0)+Math.hypot(c.x-ox,c.y-oy);if(c.pd>14){c.pd=0;if(!L.noPrint(c.x,c.y))prints.push({x:c.x,y:c.y,t:tClock,w:c.name,n:++printN,side:printN%2})}}
   }
@@ -609,6 +635,7 @@ function update(dt){
   for(const l of logs)l.t-=dt;logs=logs.filter(l=>l.t>0);
   if(marker){marker.t-=dt;if(marker.t<=0)marker=null}
   if(L.update)L.update(dt);
+  if(reinfT!==null){reinfT-=dt;if(reinfT<=0){reinfT=null;spawnReinf()}}
   chimT-=dt;if(chimT<=0){chimT=.8;for(const b of blds)if(b.smoke&&b.chim&&Math.random()<.6)fx.push({k:'smoke',x:b.chim.x,y:b.chim.y,z0:b.chim.z,t:1.2})}
   if(gs==='play'){
     if(L.win())end(true);
@@ -647,7 +674,7 @@ function disguiseToggle(){
   if(c.disguise){c.disguise=false;say('Te quitas el uniforme.');return}
   const b=bodies.find(b=>b.uniform&&dist(b,c)<32);
   if(!b)return say(bodies.some(b=>dist(b,c)<32)?'Ese uniforme está inservible.':'Necesitas un soldado abatido a tu lado.');
-  startChan(c,2.2,'Cambiándose el uniforme',()=>{b.uniform=false;c.disguise=true;c.crouch=false;sfx('ok');say(c.name+' va disfrazado: los soldados solo reparan en ti de muy cerca (no cerca del almacén).')});
+  startChan(c,2.2,'Cambiándose el uniforme',()=>{b.uniform=false;c.disguise=true;c.disguiseKind=b.kind;c.crouch=false;sfx('ok');say(c.name+' va disfrazado: los soldados solo reparan en ti de muy cerca (no cerca del almacén).')});
 }
 function cutWire(){
   const c=cur();if(!usable(c))return;
@@ -677,13 +704,13 @@ function leftClick(sp){
     c.task={type:'knife',t:e};c.path=[];armed=null;return;
   }
   if(armed==='shoot'){
-    if(c.cd>0)return say('Recargando...');
+    if(c.cd>0)return say('Accionando el cerrojo...');
     const e=enemyAtS(sp),l=!e&&lampAtS(sp);
     if(!e&&!l)return say('Haz clic sobre un enemigo o una farola.');
     const tg=e||l;
     if(dist(c,tg)>300||!los(c.x,c.y,tg.x,tg.y))return say('Sin línea de tiro o demasiado lejos.');
     if(c.disguise){c.disguise=false;say('Los disparos delatan el uniforme.')}
-    c.ammo--;c.cd=1.5;st.shots++;sfx('shot');fx.push({k:'tr',x1:c.x,y1:c.y,x2:tg.x,y2:tg.y,t:.12});
+    c.ammo--;c.cd=2.2;st.shots++;sfx('shot');fx.push({k:'tr',x1:c.x,y1:c.y,x2:tg.x,y2:tg.y,t:.12});
     if(e)killEnemy(e,'Disparo certero... pero se ha oído.',true);else{l.on=false;sfx('glass');say(l.spot?'Foco destruido.':'Farola apagada.')}
     noise(c.x,c.y,260,e||null);armed=null;return;
   }
@@ -756,7 +783,7 @@ const TEX={
   tex_roof_snow_a:mkSnowRoof('#d8e0ea'),tex_roof_snow_b:mkSnowRoof('#c3ceda'),tex_roof_station:mkRoof('#5a5a60'),tex_roof_signal:mkRoof('#4d5a55')
 };
 const SPRITES=['prop_crate','prop_truck','prop_sandbag','prop_lamp','prop_pole','cuerpo_soldado'];
-const UNITS=['minero','tirador','enlace','soldado','ametrallador','maquinista'],DIRS=['se','sw','nw','ne'];
+const UNITS=['minero','tirador','enlace','soldado','ametrallador','maquinista','guardia','falange','requete'],DIRS=['se','sw','nw','ne'];
 for(const u of UNITS)for(const d of DIRS)SPRITES.push('char_'+u+'_'+d);
 const ASSETS=Object.keys(TEX).concat(SPRITES),ASSETN=ASSETS.length;
 function loadAssets(){
@@ -935,7 +962,7 @@ function unitImg(type,dn){
   im=IMG['char_'+type+'_'+FLIP[dn]];if(im)return[im,true];
   const right=x=>x==='se'||x==='ne';
   for(const d of DIRS){im=IMG['char_'+type+'_'+d];if(im)return[im,right(d)!==right(dn)]}
-  return[null,false];
+  return(type==='guardia'||type==='falange'||type==='requete')?unitImg('soldado',dn):[null,false];
 }
 function drawUnit(u,type,o){
   const p=toScr(u.x,u.y),v=dirV(u.face),cr=o.crouch?.78:1;
@@ -945,7 +972,7 @@ function drawUnit(u,type,o){
   ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.ellipse(p.x,p.y,9,4.5,0,0,7);ctx.fill();
   const [img,flip]=unitImg(type,dirName(v));
   if(img){const w=img.width*SC,h=img.height*SC*cr;ctx.save();if(flip){ctx.translate(p.x*2,0);ctx.scale(-1,1)}ctx.drawImage(img,p.x-w/2,p.y-h+3-bob,w,h);ctx.restore();return}
-  const back=v.y<0,top=p.y-bob,soldier=type==='soldado'||type==='ametrallador';
+  const kind=o.kind||type,back=v.y<0,top=p.y-bob,soldier=['soldado','ametrallador','falange','guardia','requete'].includes(kind);
   const pants=soldier?'#4a4a38':'#2b2620';
   ctx.lineCap='round';ctx.strokeStyle=pants;ctx.lineWidth=3.4;
   for(const sd of [-1,1]){
@@ -965,7 +992,12 @@ function drawUnit(u,type,o){
   if(type==='enlace'){ctx.fillStyle='#6b4a2a';ctx.fillRect(p.x-8,top-13*cr,5,5*cr)}
   const hy=top-27*cr;
   ctx.fillStyle='#d9b48a';ctx.beginPath();ctx.arc(p.x,hy,4.3,0,7);ctx.fill();
-  if(soldier){ctx.fillStyle=o.helm;ctx.beginPath();ctx.arc(p.x,hy-1.6*cr,4.9,Math.PI,0);ctx.fill();ctx.fillRect(p.x-5.2,hy-1.6*cr,10.4,1.3)}
+  if(soldier){
+    if(kind==='guardia'){ctx.fillStyle='#14141a';ctx.beginPath();ctx.moveTo(p.x-7,hy-.5*cr);ctx.lineTo(p.x+7,hy-.5*cr);ctx.lineTo(p.x+4.5,hy-6*cr);ctx.lineTo(p.x-4.5,hy-6*cr);ctx.closePath();ctx.fill()}
+    else if(kind==='requete'){ctx.fillStyle='#a8322a';ctx.beginPath();ctx.ellipse(p.x+1,hy-3*cr,5.8,2.8,-.2,0,7);ctx.fill()}
+    else if(kind==='falange'){ctx.fillStyle='#202028';ctx.beginPath();ctx.arc(p.x,hy-1.4*cr,4.6,Math.PI,0);ctx.fill();ctx.fillRect(p.x-4.6,hy-1.4*cr,9.2,1.2)}
+    else{ctx.fillStyle=o.helm;ctx.beginPath();ctx.arc(p.x,hy-1.6*cr,4.9,Math.PI,0);ctx.fill();ctx.fillRect(p.x-5.2,hy-1.6*cr,10.4,1.3)}
+  }
   else if(type==='tirador'){ctx.fillStyle='#3b3a2e';ctx.beginPath();ctx.ellipse(p.x+1,hy-3*cr,5.6,2.6,-.2,0,7);ctx.fill()}
   else if(type==='enlace'){ctx.fillStyle='#4a3a2a';ctx.beginPath();ctx.arc(p.x,hy-1*cr,4.5,Math.PI,0);ctx.fill();ctx.fillStyle='#b8402a';ctx.fillRect(p.x-4.4,hy+3*cr,8.8,2.2)}
   else{ctx.fillStyle=o.helm||'#2a2a2a';ctx.beginPath();ctx.arc(p.x,hy-1.6*cr,4.6,Math.PI,0);ctx.fill();ctx.fillRect(p.x+v.x*3.2-2.5,hy-1.4*cr+v.y*1.2,5,1.4)}
@@ -975,9 +1007,9 @@ function drawBody(b){
   const s=toScr(b.x,b.y);
   if(IMG.cuerpo_soldado){const im=IMG.cuerpo_soldado,w=im.width*SC,h=im.height*SC;ctx.drawImage(im,s.x-w/2,s.y-h+4,w,h);return}
   ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.ellipse(s.x,s.y,13,6,0,0,7);ctx.fill();
-  ctx.fillStyle=b.uniform?'#667050':'#4a4636';ctx.beginPath();ctx.ellipse(s.x,s.y-2,10,4.5,-.3,0,7);ctx.fill();
+  ctx.fillStyle=b.uniform?KINDS[b.kind||'soldado'].col:'#4a4636';ctx.beginPath();ctx.ellipse(s.x,s.y-2,10,4.5,-.3,0,7);ctx.fill();
   ctx.fillStyle='#d9b48a';ctx.beginPath();ctx.arc(s.x+9,s.y-4,3.5,0,7);ctx.fill();
-  ctx.fillStyle='#4c5240';ctx.beginPath();ctx.arc(s.x+9,s.y-5.5,3.8,Math.PI,0);ctx.fill();
+  ctx.fillStyle=KINDS[b.kind||'soldado'].helm;ctx.beginPath();ctx.arc(s.x+9,s.y-5.5,3.8,Math.PI,0);ctx.fill();
 }
 function makeStatics(){
   statics=[];
@@ -1035,11 +1067,11 @@ function dynItems(){
     const hx=p.dx?30:11,hy=p.dx?11:30;
     it.push({x0:p.x-hx,y0:p.y-hy,x1:p.x+hx,y1:p.y+hy,d:()=>drawCar(p)});
   }
-  for(const e of enemies)if(!e.dead)it.push({x0:e.x-5,y0:e.y-5,x1:e.x+5,y1:e.y+5,d:()=>drawUnit(e,e.mg?'ametrallador':'soldado',{col:e.state==='alert'?'#7d4a40':'#667050',helm:'#4c5240',gun:true,mg:e.mg})});
+  for(const e of enemies)if(!e.dead){const kk=e.kind||'soldado',kd=KINDS[kk];it.push({x0:e.x-5,y0:e.y-5,x1:e.x+5,y1:e.y+5,d:()=>drawUnit(e,e.mg?'ametrallador':kk,{kind:kk,col:e.state==='alert'?'#7d4a40':kd.col,helm:kd.helm,gun:kk!=='jefe',mg:e.mg})})}
   for(const c of chars){
     if(c.dead||c.hidden)continue;
-    const type=c.disguise?'soldado':c.letter==='M'?'minero':c.letter==='T'?'tirador':c.letter==='F'?'maquinista':'enlace';
-    it.push({x0:c.x-5,y0:c.y-5,x1:c.x+5,y1:c.y+5,d:()=>drawUnit(c,type,c.disguise?{col:'#667050',helm:'#4c5240',gun:true,crouch:c.crouch}:{col:c.col,helm:c.letter==='M'?'#3a2a20':'#2a2a2a',gun:c.ammo!==undefined,crouch:c.crouch})});
+    const dk2=c.disguiseKind||'soldado',type=c.disguise?dk2:c.letter==='M'?'minero':c.letter==='T'?'tirador':c.letter==='F'?'maquinista':'enlace';
+    it.push({x0:c.x-5,y0:c.y-5,x1:c.x+5,y1:c.y+5,d:()=>drawUnit(c,type,c.disguise?{kind:dk2,col:KINDS[dk2].col,helm:KINDS[dk2].helm,gun:dk2!=='jefe',crouch:c.crouch}:{col:c.col,helm:c.letter==='M'?'#3a2a20':'#2a2a2a',gun:c.ammo!==undefined,crouch:c.crouch})});
   }
   return it;
 }
@@ -1180,7 +1212,8 @@ function drawHUD(){
   lines.forEach(([d,s,opt],i)=>{ctx.fillStyle=d?'#8fc27a':opt?'#a79c80':'#e8dcc0';ctx.fillText((d?'✔ ':'• ')+s,16,28+i*18)});
   ctx.fillStyle='#a79c80';ctx.font='11px Georgia';
   ctx.fillText(armed?'Acción activa: '+({knife:'cuchillo',shoot:'disparo',stone:'piedra'})[armed]+' (clic derecho cancela)':'Clic derecho: mover o entrar en una casa',16,8+hh-8);
-  L.timers().forEach(([lab,val,warn],i)=>{
+  const tms=L.timers().slice();if(reinfT!==null)tms.push(['REFUERZOS EN',fmt(reinfT),true]);
+  tms.forEach(([lab,val,warn],i)=>{
     const y=8+i*40;ctx.fillStyle='rgba(20,16,10,.8)';ctx.fillRect(812,y,180,34);
     ctx.fillStyle=warn?'#ff7a6a':'#e8dcc0';ctx.font='11px Georgia';ctx.fillText(lab,820,y+14);ctx.font='bold 16px Georgia';ctx.fillText(val,820,y+30);
     if(i===0){ctx.fillStyle='#a79c80';ctx.font='11px Georgia';ctx.fillText(DIFF[diff].name,942,y+30)}
@@ -1214,7 +1247,7 @@ function refreshUI(){
   $('bK').classList.toggle('on',armed==='knife');$('bF').classList.toggle('on',armed==='shoot');$('bR').classList.toggle('on',armed==='stone');
   const cards=$('bar').children;
   chars.forEach((ch,i)=>{const k=cards[i];if(!k)return;k.querySelector('.hp i').style.width=ch.hp+'%';k.classList.toggle('dead',ch.dead);k.classList.toggle('sel',i===sel);
-    k.querySelector('.r').textContent=ch.dead?'Caído':ch.hidden?'Oculto en una casa':ch.role+(ch.crouch?' · agachado':'')+(ch.disguise?' · disfrazado':'')});
+    k.querySelector('.r').textContent=ch.dead?'Caído':ch.hidden?'Oculto en una casa':ch.role+(ch.hp<50?' · herido (más lento)':'')+(ch.crouch?' · agachado':'')+(ch.disguise?' · disfrazado':'')});
 }
 function overlay(html){$('ovbox').innerHTML=html;$('ov').style.display='flex'}
 const PK='espana_progress',RANK={'Fantasma':3,'Profesional':2,'Ruidoso, pero lo lograste':1};

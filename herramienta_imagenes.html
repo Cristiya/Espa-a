@@ -39,7 +39,7 @@ const add=(n,w,h)=>SPEC[n]=[w,h];
 ['tex_roof_house_a','tex_roof_house_b','tex_roof_church','tex_roof_depot','tex_roof_hall','tex_roof_snow_a','tex_roof_snow_b','tex_roof_station','tex_roof_signal'].forEach(n=>add(n,256,256));
 add('door_house',64,110);add('door_depot',128,110);add('window_dark',48,64);add('window_lit',48,64);
 add('prop_crate',64,56);add('prop_sandbag',64,44);add('prop_truck',160,112);add('prop_lamp',32,64);add('prop_pole',32,96);add('cuerpo_soldado',64,32);
-for(const u of ['minero','tirador','enlace','soldado','ametrallador','maquinista'])for(const d of ['se','sw','nw','ne'])add('char_'+u+'_'+d,48,72);
+for(const u of ['minero','tirador','enlace','soldado','ametrallador','maquinista','guardia','falange','requete'])for(const d of ['se','sw','nw','ne'])add('char_'+u+'_'+d,48,72);
 const names=Object.keys(SPEC);
 const items=[];
 const $=id=>document.getElementById(id);

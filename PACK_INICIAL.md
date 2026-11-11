@@ -1,6 +1,6 @@
 # Pack inicial: 6 imágenes para ver el cambio ya
 
-Objetivo: con solo **6 imágenes** vas a notar un salto claro en el aspecto del pueblo y de los personajes. El resto de piezas (hasta 53) pueden venir después. Todo lo que falte se sigue dibujando por código.
+Objetivo: con solo **6 imágenes** vas a notar un salto claro en el aspecto del pueblo y de los personajes. El resto de piezas (hasta 66) pueden venir después. Todo lo que falte se sigue dibujando por código.
 
 Las medidas, el estilo completo y el resto de prompts están en [ARTE.md](ARTE.md). Esta ficha es el camino corto.
 
@@ -66,7 +66,7 @@ pre-rendered isometric tactical stealth game asset, 2:1 isometric camera, hand-p
 ```
 
 ## Dónde guardarlas
-En la carpeta `assets/`, junto a `index.html`, con el **nombre exacto** de la tabla (en minúsculas, extensión `.png`). Recarga la página: el briefing indica cuántas imágenes se han cargado ("Gráficos: 6 de 53...").
+En la carpeta `assets/`, junto a `index.html`, con el **nombre exacto** de la tabla (en minúsculas, extensión `.png`). Recarga la página: el briefing indica cuántas imágenes se han cargado ("Gráficos: 6 de 66...").
 
 ## Trucos
 - **Personajes: basta una sola dirección.** Si solo pones `char_soldado_se.png`, el juego la **voltea en espejo** para las otras direcciones (sw, ne, nw). No será perfecto (el fusil cambiará de mano y de espaldas se verá igual), pero ya sustituye al dibujo por código. Más adelante puedes añadir las otras tres direcciones.
