@@ -105,6 +105,8 @@ Direcciones (sufijo del nombre):
 | Ametrallador | `char_ametrallador_se/sw/nw/ne.png` | Igual que el soldado, agachado tras una ametralladora de trípode |
 | Cuerpo caído | `cuerpo_soldado.png` (64×32) | Soldado tumbado en isométrico |
 
+> **Atajo:** si de un personaje solo pones una dirección (por ejemplo `char_soldado_se.png`), el juego la usa en espejo para las demás. Es una solución provisional que ya sustituye al dibujo por código. Para empezar rápido, mira [PACK_INICIAL.md](PACK_INICIAL.md).
+
 **Cómo mantener un personaje coherente en 4 direcciones:** genera una *hoja de personaje* con vistas de frente y espalda, y a partir de ella pide cada ángulo con la misma imagen como referencia. Si la IA falla con un ángulo, puedes **voltear horizontalmente** `se↔sw` y `ne↔nw` (conviene que el personaje sea casi simétrico, o aceptar que el fusil cambie de mano).
 
 
