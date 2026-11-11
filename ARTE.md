@@ -2,7 +2,7 @@
 
 Estilo decidido: **isométrico clásico** (tipo Commandos), **noche con luz cálida**, imágenes **generadas con IA** (o por un artista).
 
-El juego ya funciona sin ninguna imagen (todo se dibuja por código). Cada PNG que pongas en la carpeta `assets/` **sustituye automáticamente** a su dibujo por código. Puedes ir añadiéndolas poco a poco. En la pantalla de briefing verás `Gráficos: N de 53 imágenes cargadas`.
+El juego ya funciona sin ninguna imagen (todo se dibuja por código). Cada PNG que pongas en la carpeta `assets/` **sustituye automáticamente** a su dibujo por código. Puedes ir añadiéndolas poco a poco. En la pantalla de briefing verás `Gráficos: N de 54 imágenes cargadas`.
 
 ---
 
@@ -123,6 +123,7 @@ Mismas reglas que las texturas de la sección A (planas, seamless, sin sombras p
 | `tex_roof_snow_b.png` | 256×256 | Variante con más teja asomando |
 | `tex_roof_station.png` | 256×256 | Tejado de estación: pizarra o teja oscura, con algo de nieve |
 | `tex_roof_signal.png` | 256×256 | Tejado de la cabina de señales, verde apagado o chapa |
+| `tex_rubble.png` | 256×256 | Escombros de piedra vistos desde arriba (ruinas del convento de San Rafael, misión 1), seamless |
 | `char_maquinista_se/sw/nw/ne.png` | 48×72 | Maquinista ferroviario: mono azul, gorra de visera, farol o llave inglesa. 4 direcciones como el resto de personajes |
 
 Prompts (con el prefijo común, añadiendo `winter night, snow, cold blue-grey palette`):

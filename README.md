@@ -2,7 +2,7 @@
 
 Juego de tácticas en tiempo real y sigilo, inspirado en Commandos, ambientado en la Guerra Civil Española. Vista isométrica, noche, equipo de especialistas y misiones de sabotaje.
 
-**Misión 1: Belchite (24 de agosto de 1937).** Vuela el almacén de munición y escapa por el este antes del amanecer.
+**Misión 1: Belchite (24 de agosto de 1937).** El mapa está inspirado en el casco viejo real (Arco de la Villa, Calle Mayor, Plaza de la Iglesia con San Martín, Torre del Reloj, Trujal, San Agustín, Arco de San Roque). Vuela el almacén de munición y escapa por el Arco de San Roque antes del amanecer.
 
 **Misión 2: La estación (Teruel, 14-15 de diciembre de 1937).** Libera al maquinista, desvía el tren blindado a la vía muerta con la palanca de la cabina, vuela los vagones y huye en la dresina. En la nieve tus pasos dejan huellas que los centinelas siguen.
 

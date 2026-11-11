@@ -92,7 +92,11 @@ const KIND={
   h:{wall:'house',H:44,chim:true,roof:['tex_roof_house_a','tex_roof_house_b']},
   hall:{wall:'hall',H:54,roof:['tex_roof_hall'],label:'AYUNTAMIENTO'},
   depot:{wall:'depot',H:50,roof:['tex_roof_depot'],label:'ALMACÉN',door:'door_depot'},
-  church:{wall:'church',H:62,roof:['tex_roof_church'],label:'IGLESIA',tower:true},
+  church:{wall:'church',H:62,roof:['tex_roof_church'],label:'SAN MARTÍN',tower:true},
+  church2:{wall:'church',H:58,roof:['tex_roof_church'],label:'SAN AGUSTÍN',tower:true},
+  ruin:{wall:'church',H:26,roof:['tex_rubble'],nowin:true,nodoor:true,noenter:true},
+  clock:{wall:'church',H:80,roof:['tex_roof_church'],label:'RELOJ',nowin:true,nodoor:true,noenter:true},
+  gate:{wall:'church',H:52,roof:['tex_roof_church'],nowin:true,nodoor:true,noenter:true},
   hs:{wall:'house',H:44,chim:true,roof:['tex_roof_snow_a','tex_roof_snow_b']},
   station:{wall:'station',H:46,roof:['tex_roof_station'],label:'ESTACIÓN'},
   jail:{wall:'station',H:40,roof:['tex_roof_station'],label:'CALABOZO'},
@@ -101,7 +105,7 @@ const KIND={
   cocheras:{wall:'shed',H:54,roof:['tex_roof_depot'],label:'COCHERAS',door:'door_depot'},
   water:{wall:'station',H:60,roof:['tex_roof_depot'],nowin:true,noenter:true,nodoor:true,tank:true}
 };
-const mkB=(x,y,w,h,k)=>({x:x*T,y:y*T,w:w*T,h:h*T,k,H:KIND[k].H,door:{x:(x+w/2)*T,y:(y+h)*T+T/2}});
+const mkB=(x,y,w,h,k,label)=>({x:x*T,y:y*T,w:w*T,h:h*T,k,label,H:KIND[k].H,door:{x:(x+w/2)*T,y:(y+h)*T+T/2}});
 let blds=[],crates=[],trees=[],sandbags=[],lamps=[],pole=null,exitZ=null,dep=null,hall=null,truck=null,L=null,curM=null;
 const fillG=(g,x,y,w,h)=>{for(let j=y;j<y+h;j++)for(let i=x;i<x+w;i++)g[j*W+i]=1};
 const tc=(x,y)=>({x:(x+.5)*T,y:(y+.5)*T});
@@ -199,29 +203,35 @@ const inExit=c=>!c.dead&&!c.hidden&&exitZ&&c.x>=exitZ.x&&c.x<=exitZ.x+exitZ.w&&c
 /* ===== Misión 1: Belchite ===== */
 const M1={
   id:'m1',n:1,title:'Belchite',date:'24 de agosto de 1937',headline:'MISIÓN 1 · BELCHITE · 24 DE AGOSTO DE 1937',limit:540,
-  ground:{base:'tex_ground_dirt',specks:['70,52,30','230,210,160'],plaza:true},
+  exitLabel:'ARCO DE SAN ROQUE',
+  ground:{base:'tex_ground_dirt',specks:['70,52,30','230,210,160'],plaza:[{x:12*T,y:9*T,w:12*T,h:9*T},{x:32*T,y:9*T,w:15*T,h:4*T}]},
   dark:{col:'6,10,32',a:.52},
-  firstMsg:'Vuela el almacén y escapa por el este antes del amanecer.',
+  firstMsg:'Vuela el almacén de San Agustín y sal por el Arco de San Roque antes del amanecer.',
   build(){return{
-    blds:[mkB(3,3,6,5,'h'),mkB(12,3,6,5,'h'),mkB(22,3,8,5,'hall'),mkB(38,3,8,5,'depot'),
-      mkB(3,13,7,6,'h'),mkB(13,13,5,6,'h'),mkB(22,12,7,7,'church'),mkB(33,13,6,6,'h'),mkB(42,13,5,6,'h'),
-      mkB(3,24,8,5,'h'),mkB(14,24,6,5,'h'),mkB(24,24,7,5,'h'),mkB(34,24,6,5,'h'),mkB(43,24,5,5,'h')],
-    crates:[[6,9,2,1],[16,22,1,1],[27,21,2,1],[44,22,2,1],[12,29,1,1],[36,29,1,1],[19,10,1,1]],
-    truck:{x:34,y:21,w:3,h:2},
-    sandbags:[[30,15,1,3],[31,15,1,1],[31,17,1,1],[45,19,3,1],[26,10,1,1]],
-    trees:[[21,9],[34,9],[21,11],[34,11],[1,16],[48,10],[1,6]],
-    pole:tc(8,21),
-    lamps:[[9,10],[27,10],[41,10],[20,21],[40,21],[31,29]].map(([x,y])=>({...tc(x,y),r:95,on:true})),
-    exitZ:{x:47*T,y:20*T,w:2*T,h:4*T}}},
+    blds:[
+      mkB(4,10,6,6,'ruin','SAN RAFAEL'),mkB(3,4,6,5,'h'),
+      mkB(12,3,9,6,'church'),mkB(22,3,5,5,'h'),mkB(27,4,3,4,'h'),
+      mkB(24,9,6,5,'hall'),mkB(24,15,5,3,'h'),
+      mkB(33,3,7,6,'church2'),mkB(41,3,6,6,'depot'),
+      mkB(33,14,3,3,'clock'),mkB(36,14,4,4,'h'),mkB(41,13,4,5,'h'),
+      mkB(2,17,2,2,'gate','ARCO'),mkB(2,23,2,2,'gate','ARCO'),mkB(45,17,2,2,'gate','ARCO'),mkB(45,23,2,2,'gate','ARCO'),
+      mkB(4,24,6,5,'h'),mkB(12,24,5,5,'h'),mkB(18,24,7,4,'shed','TRUJAL'),mkB(27,24,6,5,'h'),mkB(35,24,5,4,'h'),mkB(41,25,4,4,'h')],
+    crates:[[14,18,2,1],[28,18,1,1],[34,18,1,1],[10,9,1,1],[39,12,2,1]],
+    truck:{x:36,y:11,w:3,h:2},
+    sandbags:[[12,16,1,3],[13,18,1,1]],
+    trees:[[14,10],[21,10],[14,16],[21,16],[1,12],[48,12],[1,28],[48,28]],
+    pole:tc(6,18),
+    lamps:[[10,19],[22,19],[31,19],[42,19],[18,10],[26,8],[37,10],[46,10],[11,26],[30,29]].map(([x,y])=>({...tc(x,y),r:95,on:true})),
+    exitZ:{x:47*T,y:19*T,w:2*T,h:4*T}}},
   chars(){return[
-    mkChar('Minero asturiano','Dinamita y sabotaje','#c0572f','M',2,29,{dyn:1,knife:true}),
-    mkChar('Tirador aragonés','Fusil de precisión','#4a7fa8','T',2,30,{ammo:6,cd:0}),
-    mkChar('Enlace del pueblo','Piedras y cuchillo','#7a9a4a','E',3,30,{stones:5,knife:true})]},
+    mkChar('Minero asturiano','Dinamita y sabotaje','#c0572f','M',1,20,{dyn:1,knife:true}),
+    mkChar('Tirador aragonés','Fusil de precisión','#4a7fa8','T',1,21,{ammo:6,cd:0}),
+    mkChar('Enlace del pueblo','Piedras y cuchillo','#7a9a4a','E',1,22,{stones:5,knife:true})]},
   enemies(){return[
-    mkEnemy([[4,10],[36,10]]),mkEnemy([[14,21],[45,21]]),mkEnemy([[20,4],[20,29]]),
-    mkEnemy([[31,5],[31,28]]),mkEnemy([[12,30],[46,30]]),
-    mkEnemy([[40,9]],true,0),mkEnemy([[46,19]],true,Math.PI/2),
-    mkEnemy([[31,16]],true,Math.PI,{mg:true,R:230,fov:.95})]},
+    mkEnemy([[14,20],[44,20]]),mkEnemy([[13,12],[22,15]]),mkEnemy([[30,4],[30,18]]),
+    mkEnemy([[33,11],[45,11]]),mkEnemy([[3,29],[46,29]]),
+    mkEnemy([[44,10]],true,Math.PI),mkEnemy([[47,17]],true,Math.PI/2),
+    mkEnemy([[13,17]],true,0,{mg:true,R:230,fov:.95})]},
   restricted:t=>distRect(t,dep)<130,
   plantCheck:c=>distRect(c,dep)>55?'Acércate a la pared del almacén para colocar la carga.':null,
   explode(){
@@ -230,7 +240,7 @@ const M1={
     for(const e of enemies)if(!e.dead&&Math.hypot(e.x-cx,e.y-cy)<r)killEnemy(e,null,true,true);
     for(const c of chars)if(!c.dead&&Math.hypot(c.x-cx,c.y-cy)<r){c.hidden=false;hurt(c,999)}
     for(const e of enemies)if(!e.dead&&e.state!=='alert')investigate(e,cx,cy,5,null,'¡El almacén!');
-    say('¡El almacén ha volado! Todos a la salida, al este.');
+    say('¡El almacén ha volado! Todos al Arco de San Roque, al este.');
   },
   onEnter(c,b){
     if(b===hall&&!docs){docs=true;say('Plano de defensas recuperado en el ayuntamiento.');sfx('ok')}
@@ -239,15 +249,17 @@ const M1={
   },
   win:()=>depotDown&&chars.every(inExit),
   timers:()=>[['AMANECER EN',fmt(tLeft),tLeft<90]],
-  hud:()=>[[depotDown,'Volar el almacén de munición (extremo este)'],[false,'Salir por el este con los tres'],[docs,'(Opc.) Plano de defensas: ayuntamiento',1],[phoneCut,'(Opc.) Cortar el cable del teléfono',1]],
+  hud:()=>[[depotDown,'Volar el almacén de munición (San Agustín)'],[false,'Salir por el Arco de San Roque (este)'],[docs,'(Opc.) Plano de defensas: ayuntamiento',1],[phoneCut,'(Opc.) Cortar el cable del teléfono',1]],
   timeout:'Ha amanecido. La ofensiva empieza con el pueblo todavía en pie y el almacén intacto, o con el grupo sin salir a tiempo.',
   winText:'El almacén ha saltado por los aires y el grupo ha cruzado la salida con todos sus miembros.',
   report:()=>`<li>Plano de defensas: ${docs?'recuperado ✔':'no recuperado'} · Teléfono: ${phoneCut?'cortado ✔':'intacto'}</li>`,
   brief:()=>`<p style="letter-spacing:.3em;color:var(--mute);margin:0;font-size:12px">ESPAÑA · MISIÓN 1</p><h2>Belchite, 23-24 de agosto de 1937</h2>
   <h3>Contexto histórico</h3>
   <p>El Ejército Popular de la República lanza en agosto de 1937 la ofensiva de Zaragoza. Belchite, un pueblo aragonés convertido en bastión por la guarnición sublevada, es uno de sus primeros objetivos. Caerá el 6 de septiembre tras días de combates casa por casa. Su casco viejo quedó en ruinas y hoy se conserva como memorial.</p>
+  <h3>El lugar</h3>
+  <p>El mapa está <b>inspirado en el casco viejo real</b>: entras por el <b>Arco de la Villa</b>, junto a las ruinas del convento de San Rafael, y recorres la <b>Calle Mayor</b>. Verás la <b>Plaza de la Iglesia</b> con San Martín de Tours, el ayuntamiento, la <b>Torre del Reloj</b>, el <b>Trujal</b> (el antiguo molino de aceite) y, al norte, <b>San Agustín</b>. La salida es el <b>Arco de San Roque</b>. Las posiciones son aproximadas.</p>
   <h3>La misión (ficticia)</h3>
-  <p>Un minero asturiano, un tirador aragonés y una enlace que conoce cada calleja se infiltran de madrugada. Deben <b>volar el almacén de munición</b> y <b>escapar por el este antes del amanecer</b>. Si hay tiempo: recuperar el plano de defensas del ayuntamiento y cortar el teléfono para que no se propague la alarma.</p>
+  <p>Un minero asturiano, un tirador aragonés y una enlace que conoce cada calleja se infiltran de madrugada. Deben <b>volar el almacén de munición</b> instalado junto a San Agustín y <b>escapar por el Arco de San Roque antes del amanecer</b>. Si hay tiempo: recuperar el plano de defensas del ayuntamiento y cortar el teléfono para que no se propague la alarma.</p>
   <p><small>Marco histórico real; los personajes son arquetipos de la época. La ametralladora de la plaza, las farolas y los cuerpos descubiertos son tus mayores peligros. Los uniformes de los soldados abatidos pueden ayudarte a pasar desapercibido.</small></p>`
 };
 
@@ -729,6 +741,7 @@ function mkGround(base,cob){return ptex(128,128,(g,w,h)=>{g.fillStyle=base;g.fil
   if(cob){for(let y=0;y<h;y+=16)for(let x=(y/16%2)*8;x<w;x+=16){g.fillStyle=`rgba(${r()<.5?'40,30,20':'255,240,200'},${.06+r()*.1})`;g.fillRect(x+1,y+1,14,14);g.strokeStyle='rgba(40,30,20,.28)';g.strokeRect(x+.5,y+.5,15,15)}}
   else for(let i=0;i<260;i++){g.fillStyle=`rgba(${r()<.5?'70,52,30':'225,205,155'},${.05+r()*.12})`;g.fillRect(r()*w,r()*h,2+r()*5,2+r()*4)}})}
 function mkDoor(w,h,col){return ptex(w,h,(g)=>{g.fillStyle='#1c150d';g.fillRect(0,0,w,h);g.fillStyle=col;g.fillRect(3,3,w-6,h-3);g.strokeStyle='rgba(0,0,0,.4)';for(let x=8;x<w-3;x+=8){g.beginPath();g.moveTo(x,3);g.lineTo(x,h);g.stroke()}if(w>50){g.fillStyle='#1c150d';g.fillRect(w/2-1,3,2,h)}g.fillStyle='#c9a24b';g.fillRect(w-9,h*.55,3,3)})}
+function mkRubble(){return ptex(96,96,(g,w,h)=>{g.fillStyle='#5a5146';g.fillRect(0,0,w,h);const r=rndf(17);for(let i=0;i<70;i++){g.fillStyle=r()<.5?'#6e6457':'#463f36';g.fillRect(r()*w,r()*h,5+r()*14,4+r()*10)}g.fillStyle='rgba(0,0,0,.2)';for(let i=0;i<20;i++)g.fillRect(r()*w,r()*h,3,3)})}
 function mkSnow(base,sd){return ptex(128,128,(g,w,h)=>{g.fillStyle=base;g.fillRect(0,0,w,h);const r=rndf(sd);for(let i=0;i<300;i++){g.fillStyle=`rgba(${r()<.5?'120,140,170':'255,255,255'},${.05+r()*.12})`;g.fillRect(r()*w,r()*h,2+r()*6,1+r()*3)}})}
 function mkBrick(base){return ptex(96,64,(g,w,h)=>{g.fillStyle=base;g.fillRect(0,0,w,h);for(let y=0;y<h;y+=8)for(let x=(y/8%2)*8;x<w;x+=16){g.fillStyle=`rgba(0,0,0,${.05+((x*5+y*3)%7)/60})`;g.fillRect(x+1,y+1,14,6)}g.strokeStyle='rgba(0,0,0,.25)';for(let y=0;y<h;y+=8){g.beginPath();g.moveTo(0,y);g.lineTo(w,y);g.stroke()}const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'rgba(255,255,255,.1)');gr.addColorStop(1,'rgba(0,0,0,.3)');g.fillStyle=gr;g.fillRect(0,0,w,h)})}
 function mkPlank(base){return ptex(96,64,(g,w,h)=>{g.fillStyle=base;g.fillRect(0,0,w,h);for(let x=0;x<w;x+=12){g.fillStyle=`rgba(0,0,0,${.06+((x*7)%5)/50})`;g.fillRect(x,0,11,h);g.fillStyle='rgba(0,0,0,.3)';g.fillRect(x+11,0,1,h)}const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'rgba(220,230,255,.18)');gr.addColorStop(1,'rgba(0,0,0,.3)');g.fillStyle=gr;g.fillRect(0,0,w,h)})}
@@ -739,7 +752,7 @@ const TEX={
   tex_wall_house:mkWall('#d6c59c'),tex_wall_church:mkWall('#b9b19c'),tex_wall_depot:mkWall('#8c7a5a'),tex_wall_hall:mkWall('#cdb690'),
   tex_roof_house_a:mkRoof('#a4633f'),tex_roof_house_b:mkRoof('#935537'),tex_roof_church:mkRoof('#77736a'),tex_roof_depot:mkRoof('#4f4331'),tex_roof_hall:mkRoof('#7b4a38'),
   door_house:mkDoor(40,72,'#3d2c1a'),door_depot:mkDoor(64,72,'#4a3a22'),window_lit:mkWindow(true),window_dark:mkWindow(false),
-  tex_ground_snow:mkSnow('#c7d2de',31),tex_snow_trodden:mkSnow('#8f9cab',33),tex_wall_station:mkBrick('#8a5a45'),tex_wall_shed:mkPlank('#6d6a60'),
+  tex_rubble:mkRubble(),tex_ground_snow:mkSnow('#c7d2de',31),tex_snow_trodden:mkSnow('#8f9cab',33),tex_wall_station:mkBrick('#8a5a45'),tex_wall_shed:mkPlank('#6d6a60'),
   tex_roof_snow_a:mkSnowRoof('#d8e0ea'),tex_roof_snow_b:mkSnowRoof('#c3ceda'),tex_roof_station:mkRoof('#5a5a60'),tex_roof_signal:mkRoof('#4d5a55')
 };
 const SPRITES=['prop_crate','prop_truck','prop_sandbag','prop_lamp','prop_pole','cuerpo_soldado'];
@@ -779,7 +792,7 @@ function bakeGround(){
   const P=(x,y)=>({x:PX(x,y),y:PY(x,y,0)});
   const O=P(0,0),U={x:P(1000,0).x-O.x,y:P(1000,0).y-O.y},V={x:P(0,640).x-O.x,y:P(0,640).y-O.y};
   qtex(g,TEX[L.ground.base],O,U,V,10,6);
-  if(L.ground.plaza){const O2=P(18*T,8*T);qtex(g,TEX.tex_ground_cobble,O2,{x:P(34*T,8*T).x-O2.x,y:P(34*T,8*T).y-O2.y},{x:P(18*T,12*T).x-O2.x,y:P(18*T,12*T).y-O2.y},4,1)}
+  if(L.ground.plaza)for(const q of L.ground.plaza){const O2=P(q.x,q.y),A=P(q.x+q.w,q.y),B=P(q.x,q.y+q.h);qtex(g,TEX.tex_ground_cobble,O2,{x:A.x-O2.x,y:A.y-O2.y},{x:B.x-O2.x,y:B.y-O2.y},Math.max(1,Math.round(q.w/80)),Math.max(1,Math.round(q.h/80)))}
   const r=rndf(21),sc=L.ground.specks;
   for(let i=0;i<2200;i++){const x=r()*1000,y=r()*640;g.fillStyle=`rgba(${r()<.5?sc[0]:sc[1]},${.06+r()*.1})`;const p=P(x,y);g.fillRect(p.x,p.y,2+r()*3,1+r()*2)}
   const rb=rndf(77);
@@ -830,7 +843,8 @@ function bakeBuilding(b,idx){
     }
   }
   if(!K.nodoor){if(K.door)decal(SW,b.w/2-14,28,24,24,TEX[K.door]);else decal(SW,b.w/2-7,14,24,24,TEX.door_house)}
-  if(K.label){const O=fp(SW,b.w/2,H-4);g.save();g.transform(1,.5,0,1,O.x,O.y);g.fillStyle='#f0e4c4';g.font='bold 9px Georgia';g.textAlign='center';g.fillText(K.label,0,0);g.restore()}
+  const lab=b.label!==undefined?b.label:K.label;
+  if(lab){const O=fp(SW,b.w/2,H-4);g.save();g.transform(1,.5,0,1,O.x,O.y);g.fillStyle='#f0e4c4';g.font='bold 9px Georgia';g.textAlign='center';g.fillText(lab,0,0);g.restore()}
   function boxG(ax0,ay0,ax1,ay1,z0,z1,cT,cL,cR){
     const N=P(ax0,ay0,z1),E=P(ax1,ay0,z1),S=P(ax1,ay1,z1),W=P(ax0,ay1,z1),Sg=P(ax1,ay1,z0),Wg=P(ax0,ay1,z0),Eg=P(ax1,ay0,z0);
     polyG(g,[W,S,Sg,Wg],cL);polyG(g,[S,E,Eg,Sg],cR);polyG(g,[N,E,S,W],cT);
