@@ -53,7 +53,7 @@
 </style>
 </head>
 <body>
-<h1 class="logo">ESPAÑA<small>MISIÓN 1 · BELCHITE · 24 DE AGOSTO DE 1937</small></h1>
+<h1 class="logo">ESPAÑA<small id="hsub">MISIÓN 1 · BELCHITE · 24 DE AGOSTO DE 1937</small></h1>
 <div id="wrap">
   <canvas id="cv" width="1000" height="640"></canvas>
   <div id="ov"><div class="box" id="ovbox"></div></div>
@@ -68,14 +68,15 @@
   <button id="bU"><span class="t">Disfrazarse</span> <kbd>U</kbd></button>
   <button id="bH"><span class="t">Ocultar cuerpo</span> <kbd>H</kbd></button>
   <button id="bX"><span class="t">Cortar cable</span> <kbd>X</kbd></button>
+  <button id="bL" style="display:none"><span class="t">Palanca</span> <kbd>L</kbd></button>
   <button id="bP"><span class="t">Pausa</span> <kbd>Espacio</kbd></button>
   <button id="bN"><span class="t">Menú</span></button>
   <button id="bM"><span class="t">Sonido: sí</span></button>
   <button id="bQ"><span class="t">Reiniciar</span></button>
 </div>
 <div id="help">
-  <b>Controles:</b> clic izquierdo = seleccionar / ejecutar acción activa · clic derecho = mover, cancelar, o <b>entrar en una casa</b> (clic derecho sobre ella: te escondes dentro; otro clic derecho para salir) · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> personaje · <kbd>Esc</kbd> cancela · cámara: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / flechas / bordes de pantalla / minimapa · <kbd>Q</kbd> centra en el personaje.<br>
-  <b>Claves:</b> los muros bloquean la visión · la luz de las farolas te delata antes (el tirador puede apagarlas de un disparo) · agachado te ven menos pero vas más lento · los cuerpos descubiertos dan la alarma · <kbd>U</kbd> te pone el uniforme de un soldado abatido (a cuchillo o a tiros, no por la explosión): solo te reconocen de muy cerca, pero no funciona cerca del almacén y se pierde al disparar o si te ven actuar.
+  <b>Controles:</b> clic izquierdo = seleccionar / ejecutar acción activa · clic derecho = mover, cancelar, o <b>entrar en una casa</b> (clic derecho sobre ella: te escondes dentro; otro clic derecho para salir) · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> personaje · <kbd>Esc</kbd> cancela · cámara: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / flechas / bordes de pantalla / minimapa · <kbd>Q</kbd> centra en el personaje.<br>
+  <b>Claves:</b> los muros bloquean la visión · la luz de las farolas te delata antes (el tirador puede apagarlas de un disparo) · agachado te ven menos pero vas más lento · los cuerpos descubiertos dan la alarma · <kbd>U</kbd> te pone el uniforme de un soldado abatido (a cuchillo o a tiros, no por la explosión): solo te reconocen de muy cerca, pero no funciona cerca del almacén y se pierde al disparar o si te ven actuar · <b>Misión 2:</b> tus pasos dejan huellas en la nieve; pisa andén, vías y caminos para no dejar rastro · <kbd>L</kbd> palanca de agujas (solo el maquinista, dentro de la cabina).
 </div>
 
 <script>
@@ -86,28 +87,36 @@ const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
 const grid=new Uint8Array(W*H);   // 1 = muro alto (bloquea paso y visión)
 const low=new Uint8Array(W*H);    // 1 = obstáculo bajo (bloquea paso, no visión)
-const mkB=(x,y,w,h,k)=>({x:x*T,y:y*T,w:w*T,h:h*T,k,door:{x:(x+w/2)*T,y:(y+h)*T+T/2}});
-const blds=[
-  mkB(3,3,6,5,'h'),mkB(12,3,6,5,'h'),mkB(22,3,8,5,'hall'),mkB(38,3,8,5,'depot'),
-  mkB(3,13,7,6,'h'),mkB(13,13,5,6,'h'),mkB(22,12,7,7,'church'),mkB(33,13,6,6,'h'),mkB(42,13,5,6,'h'),
-  mkB(3,24,8,5,'h'),mkB(14,24,6,5,'h'),mkB(24,24,7,5,'h'),mkB(34,24,6,5,'h'),mkB(43,24,5,5,'h')
-];
+// tipos de edificio: textura de muro, tejados, altura, rótulo y puerta
+const KIND={
+  h:{wall:'house',H:44,roof:['tex_roof_house_a','tex_roof_house_b']},
+  hall:{wall:'hall',H:54,roof:['tex_roof_hall'],label:'AYUNTAMIENTO'},
+  depot:{wall:'depot',H:50,roof:['tex_roof_depot'],label:'ALMACÉN',door:'door_depot'},
+  church:{wall:'church',H:62,roof:['tex_roof_church'],label:'IGLESIA',tower:true},
+  hs:{wall:'house',H:44,roof:['tex_roof_snow_a','tex_roof_snow_b']},
+  station:{wall:'station',H:46,roof:['tex_roof_station'],label:'ESTACIÓN'},
+  jail:{wall:'station',H:40,roof:['tex_roof_station'],label:'CALABOZO'},
+  signal:{wall:'shed',H:44,roof:['tex_roof_signal'],label:'CABINA'},
+  shed:{wall:'shed',H:48,roof:['tex_roof_snow_b']},
+  cocheras:{wall:'shed',H:54,roof:['tex_roof_depot'],label:'COCHERAS',door:'door_depot'},
+  water:{wall:'station',H:60,roof:['tex_roof_depot'],nowin:true,noenter:true,nodoor:true,tank:true}
+};
+const mkB=(x,y,w,h,k)=>({x:x*T,y:y*T,w:w*T,h:h*T,k,H:KIND[k].H,door:{x:(x+w/2)*T,y:(y+h)*T+T/2}});
+let blds=[],crates=[],sandbags=[],lamps=[],pole=null,exitZ=null,dep=null,hall=null,truck=null,L=null,curM=null;
 const fillG=(g,x,y,w,h)=>{for(let j=y;j<y+h;j++)for(let i=x;i<x+w;i++)g[j*W+i]=1};
-for(const b of blds)fillG(grid,b.x/T,b.y/T,b.w/T,b.h/T);
-for(let x=0;x<W;x++){grid[x]=1;grid[(H-1)*W+x]=1}
-for(let y=0;y<H;y++){grid[y*W]=1;grid[y*W+W-1]=1}
-const crates=[[6,9,2,1],[16,22,1,1],[27,21,2,1],[44,22,2,1],[12,29,1,1],[36,29,1,1],[19,10,1,1]];
-const truck={x:34,y:21,w:3,h:2};
-const sandbags=[[30,15,1,3],[31,15,1,1],[31,17,1,1],[45,19,3,1],[26,10,1,1]];
-for(const c of crates)fillG(grid,...c);
-fillG(grid,truck.x,truck.y,truck.w,truck.h);
-for(const s of sandbags)fillG(low,...s);
-const dep=blds.find(b=>b.k==='depot'),hall=blds.find(b=>b.k==='hall');
-const exitZ={x:47*T,y:20*T,w:2*T,h:4*T};
 const tc=(x,y)=>({x:(x+.5)*T,y:(y+.5)*T});
-const pole=tc(8,21);
-const lamps=[[9,10],[27,10],[41,10],[20,21],[40,21],[31,29]].map(([x,y])=>({...tc(x,y),r:95,on:true}));
 const lit=p=>lamps.some(l=>l.on&&Math.hypot(l.x-p.x,l.y-p.y)<l.r);
+function setupMap(d){
+  grid.fill(0);low.fill(0);
+  blds=d.blds;crates=d.crates||[];sandbags=d.sandbags||[];truck=d.truck||null;pole=d.pole||null;lamps=d.lamps||[];exitZ=d.exitZ;
+  dep=blds.find(b=>b.k==='depot')||null;hall=blds.find(b=>b.k==='hall')||null;
+  for(const b of blds)fillG(grid,b.x/T,b.y/T,b.w/T,b.h/T);
+  for(let x=0;x<W;x++){grid[x]=1;grid[(H-1)*W+x]=1}
+  for(let y=0;y<H;y++){grid[y*W]=1;grid[y*W+W-1]=1}
+  for(const c of crates)fillG(grid,...c);
+  if(truck)fillG(grid,truck.x,truck.y,truck.w,truck.h);
+  for(const s of sandbags)fillG(low,...s);
+}
 
 const solidAt=(x,y)=>{const tx=x/T|0,ty=y/T|0;return x<0||y<0||tx>=W||ty>=H||grid[ty*W+tx]===1};
 function los(x1,y1,x2,y2){const d=Math.hypot(x2-x1,y2-y1),n=Math.ceil(d/5);for(let i=1;i<n;i++){const t=i/n;if(solidAt(x1+(x2-x1)*t,y1+(y2-y1)*t))return false}return true}
@@ -176,28 +185,282 @@ function sfx(k){
 let chars,enemies,bodies,fx,logs,gs,armed,sel,plant,depotDown,paused,tClock,marker,tLeft,docs,phoneCut,st,prevAlert,diff=2;
 const DIFF={1:{det:.7,dmg:20,name:'Fácil'},2:{det:1,dmg:30,name:'Normal'},3:{det:1.35,dmg:38,name:'Difícil'}};
 let mouse={x:0,y:0};
+let train=null,trainT=0,trainStopped=false,trainDown=false,switchSiding=false,hasKey=false,freed=false,horario=false,prints=[],printN=0,spots=[],blizT=1e9,blizOn=false,flakes=[],fdt=.016,trainWarn=false;
+const PRINT_LIFE={1:60,2:100,3:150};
 function mkChar(name,role,col,letter,x,y,extra){return Object.assign({name,role,col,letter,...tc(x,y),hp:100,path:[],task:null,chan:null,dead:false,hidden:false,crouch:false,disguise:false,face:-Math.PI/2,mx:0,my:0},extra)}
 function mkEnemy(wps,sentry,base,extra){
   const p=tc(wps[0][0],wps[0][1]);
   return Object.assign({x:p.x,y:p.y,hx:p.x,hy:p.y,wps:wps.map(w=>tc(w[0],w[1])),wi:0,dir:1,sentry:!!sentry,base:base||0,phase:Math.random()*6,R:150,fov:1.4,
     face:sentry?base:0,state:'patrol',detect:0,path:[],arrived:false,wait:0,shootCd:0,tSeen:0,rep:0,last:null,sus:null,dead:false,body:null,barkCd:0,mg:false},extra||{});
 }
-function init(){
-  chars=[
+const inExit=c=>!c.dead&&!c.hidden&&exitZ&&c.x>=exitZ.x&&c.x<=exitZ.x+exitZ.w&&c.y>=exitZ.y&&c.y<=exitZ.y+exitZ.h;
+
+/* ===== Misión 1: Belchite ===== */
+const M1={
+  id:'m1',n:1,title:'Belchite',date:'24 de agosto de 1937',headline:'MISIÓN 1 · BELCHITE · 24 DE AGOSTO DE 1937',limit:540,
+  ground:{base:'tex_ground_dirt',specks:['70,52,30','230,210,160'],plaza:true},
+  dark:{col:'6,10,32',a:.52},
+  firstMsg:'Vuela el almacén y escapa por el este antes del amanecer.',
+  build(){return{
+    blds:[mkB(3,3,6,5,'h'),mkB(12,3,6,5,'h'),mkB(22,3,8,5,'hall'),mkB(38,3,8,5,'depot'),
+      mkB(3,13,7,6,'h'),mkB(13,13,5,6,'h'),mkB(22,12,7,7,'church'),mkB(33,13,6,6,'h'),mkB(42,13,5,6,'h'),
+      mkB(3,24,8,5,'h'),mkB(14,24,6,5,'h'),mkB(24,24,7,5,'h'),mkB(34,24,6,5,'h'),mkB(43,24,5,5,'h')],
+    crates:[[6,9,2,1],[16,22,1,1],[27,21,2,1],[44,22,2,1],[12,29,1,1],[36,29,1,1],[19,10,1,1]],
+    truck:{x:34,y:21,w:3,h:2},
+    sandbags:[[30,15,1,3],[31,15,1,1],[31,17,1,1],[45,19,3,1],[26,10,1,1]],
+    pole:tc(8,21),
+    lamps:[[9,10],[27,10],[41,10],[20,21],[40,21],[31,29]].map(([x,y])=>({...tc(x,y),r:95,on:true})),
+    exitZ:{x:47*T,y:20*T,w:2*T,h:4*T}}},
+  chars(){return[
     mkChar('Minero asturiano','Dinamita y sabotaje','#c0572f','M',2,29,{dyn:1,knife:true}),
     mkChar('Tirador aragonés','Fusil de precisión','#4a7fa8','T',2,30,{ammo:6,cd:0}),
-    mkChar('Enlace del pueblo','Piedras y cuchillo','#7a9a4a','E',3,30,{stones:5,knife:true})
-  ];
-  enemies=[
+    mkChar('Enlace del pueblo','Piedras y cuchillo','#7a9a4a','E',3,30,{stones:5,knife:true})]},
+  enemies(){return[
     mkEnemy([[4,10],[36,10]]),mkEnemy([[14,21],[45,21]]),mkEnemy([[20,4],[20,29]]),
     mkEnemy([[31,5],[31,28]]),mkEnemy([[12,30],[46,30]]),
     mkEnemy([[40,9]],true,0),mkEnemy([[46,19]],true,Math.PI/2),
-    mkEnemy([[31,16]],true,Math.PI,{mg:true,R:230,fov:.95})
-  ];
-  bodies=[];fx=[];logs=[];armed=null;sel=0;plant=null;depotDown=false;paused=false;tClock=0;marker=null;tLeft=540;docs=false;phoneCut=false;prevAlert=false;
+    mkEnemy([[31,16]],true,Math.PI,{mg:true,R:230,fov:.95})]},
+  restricted:t=>distRect(t,dep)<130,
+  plantCheck:c=>distRect(c,dep)>55?'Acércate a la pared del almacén para colocar la carga.':null,
+  explode(){
+    const cx=dep.x+dep.w/2,cy=dep.y+dep.h/2,r=150;depotDown=true;plant=null;sfx('boom');
+    fx.push({k:'boom',x:cx,y:cy,t:1});
+    for(const e of enemies)if(!e.dead&&Math.hypot(e.x-cx,e.y-cy)<r)killEnemy(e,null,true,true);
+    for(const c of chars)if(!c.dead&&Math.hypot(c.x-cx,c.y-cy)<r){c.hidden=false;hurt(c,999)}
+    for(const e of enemies)if(!e.dead&&e.state!=='alert')investigate(e,cx,cy,5,null,'¡El almacén!');
+    say('¡El almacén ha volado! Todos a la salida, al este.');
+  },
+  onEnter(c,b){
+    if(b===hall&&!docs){docs=true;say('Plano de defensas recuperado en el ayuntamiento.');sfx('ok')}
+    else say(c.name+' se esconde en el interior.');
+    return true;
+  },
+  win:()=>depotDown&&chars.every(inExit),
+  timers:()=>[['AMANECER EN',fmt(tLeft),tLeft<90]],
+  hud:()=>[[depotDown,'Volar el almacén de munición (extremo este)'],[false,'Salir por el este con los tres'],[docs,'(Opc.) Plano de defensas: ayuntamiento',1],[phoneCut,'(Opc.) Cortar el cable del teléfono',1]],
+  timeout:'Ha amanecido. La ofensiva empieza con el pueblo todavía en pie y el almacén intacto, o con el grupo sin salir a tiempo.',
+  winText:'El almacén ha saltado por los aires y el grupo ha cruzado la salida con todos sus miembros.',
+  report:()=>`<li>Plano de defensas: ${docs?'recuperado ✔':'no recuperado'} · Teléfono: ${phoneCut?'cortado ✔':'intacto'}</li>`,
+  brief:()=>`<p style="letter-spacing:.3em;color:var(--mute);margin:0;font-size:12px">ESPAÑA · MISIÓN 1</p><h2>Belchite, 23-24 de agosto de 1937</h2>
+  <h3>Contexto histórico</h3>
+  <p>El Ejército Popular de la República lanza en agosto de 1937 la ofensiva de Zaragoza. Belchite, un pueblo aragonés convertido en bastión por la guarnición sublevada, es uno de sus primeros objetivos. Caerá el 6 de septiembre tras días de combates casa por casa. Su casco viejo quedó en ruinas y hoy se conserva como memorial.</p>
+  <h3>La misión (ficticia)</h3>
+  <p>Un minero asturiano, un tirador aragonés y una enlace que conoce cada calleja se infiltran de madrugada. Deben <b>volar el almacén de munición</b> y <b>escapar por el este antes del amanecer</b>. Si hay tiempo: recuperar el plano de defensas del ayuntamiento y cortar el teléfono para que no se propague la alarma.</p>
+  <p><small>Marco histórico real; los personajes son arquetipos de la época. La ametralladora de la plaza, las farolas y los cuerpos descubiertos son tus mayores peligros. Los uniformes de los soldados abatidos pueden ayudarte a pasar desapercibido.</small></p>`
+};
+
+/* ===== Misión 2: la estación (Teruel) ===== */
+const MY=14*T+10,SY=19*T+10,JX=12*T+10,BX=840,CL=62,TX0=-320;
+const DIFFT={1:420,2:360,3:300};
+const trodden=[
+  {x:14*T,y:13*T,w:20*T,h:T},{x:T,y:20*T,w:48*T,h:2*T},{x:25*T,y:T,w:2*T,h:28*T},{x:T,y:8*T,w:48*T,h:2*T},
+  {x:0,y:MY-12,w:1000,h:24},{x:JX-12,y:SY-12,w:1000-JX+12,h:24},{x:JX-12,y:MY-12,w:24,h:SY-MY+24}
+];
+const noPrint=(x,y)=>trodden.some(r=>x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h);
+function trainPos(s,i){
+  const si=s-i*CL,a=JX-TX0;
+  if(si<=a)return{x:TX0+si,y:MY,dx:1,dy:0};
+  if(train.route==='siding'){
+    const s2=si-a,LB=SY-MY;
+    if(s2<=LB)return{x:JX,y:MY+s2,dx:0,dy:1};
+    return{x:JX+(s2-LB),y:SY,dx:1,dy:0};
+  }
+  return{x:JX+(si-a),y:MY,dx:1,dy:0};
+}
+const carsNow=()=>train?[0,1,2,3].map(i=>({...trainPos(train.s,i),i})):[];
+const nearTrain=(p,r)=>carsNow().some(c=>Math.hypot(c.x-p.x,c.y-p.y)<r);
+function track(g,P,x0,y0,x1,y1){
+  const hz=y0===y1,u0=hz?x0:y0,u1=hz?x1:y1,c=hz?y0:x0;
+  const q=(a,b,v0,v1)=>hz?[P(a,v0),P(b,v0),P(b,v1),P(a,v1)]:[P(v0,a),P(v0,b),P(v1,b),P(v1,a)];
+  polyG(g,q(u0,u1,c-11,c+11),'rgba(60,62,70,.88)');
+  for(let u=u0;u<u1;u+=10)polyG(g,q(u,u+4,c-9,c+9),'#3a2b1d');
+  polyG(g,q(u0,u1,c-7,c-5),'#9aa0a8');polyG(g,q(u0,u1,c+5,c+7),'#9aa0a8');
+  polyG(g,q(u0,u1,c-11,c+11),'rgba(255,255,255,.12)');
+}
+const M2={
+  id:'m2',n:2,title:'La estación de Teruel',date:'14-15 de diciembre de 1937',headline:'MISIÓN 2 · LA ESTACIÓN · TERUEL · 14-15 DE DICIEMBRE DE 1937',limit:660,snow:true,prints:true,exitLabel:'DRESINA',
+  ground:{base:'tex_ground_snow',specks:['110,130,160','255,255,255']},
+  dark:{col:'8,14,44',a:.48},
+  firstMsg:'Libera al maquinista, desvía el tren y vuela los vagones antes del amanecer.',
+  noPrint,
+  build(){return{
+    blds:[mkB(3,3,6,5,'hs'),mkB(11,3,6,5,'hs'),mkB(19,3,5,5,'hs'),mkB(30,4,3,3,'water'),mkB(36,3,8,5,'shed'),mkB(44,3,4,5,'hs'),
+      mkB(3,10,6,3,'hs'),mkB(16,10,9,3,'station'),mkB(27,10,4,3,'jail'),mkB(36,10,5,3,'hs'),
+      mkB(9,15,3,3,'signal'),mkB(36,15,8,3,'cocheras'),
+      mkB(3,22,6,5,'hs'),mkB(12,22,5,5,'hs'),mkB(21,23,4,5,'hs'),mkB(28,22,7,5,'shed'),mkB(38,23,5,4,'hs'),mkB(44,22,4,5,'hs')],
+    crates:[[20,8,2,1],[33,17,1,1],[8,20,1,1],[45,18,2,1],[18,28,2,1],[5,9,1,1]],
+    sandbags:[[30,9,1,1],[31,9,1,1],[32,9,1,1],[29,8,1,1],[33,8,1,1]],
+    pole:tc(14,12),
+    lamps:[[10,13],[22,13],[33,13],[14,18],[40,18],[26,8],[6,9]].map(([x,y])=>({...tc(x,y),r:95,on:true})),
+    exitZ:{x:45*T,y:13*T,w:4*T,h:3*T}}},
+  chars(){return[
+    mkChar('Minero asturiano','Dinamita y sabotaje','#c0572f','M',1,1,{dyn:1,knife:true}),
+    mkChar('Tirador aragonés','Fusil de precisión','#4a7fa8','T',2,1,{ammo:6,cd:0}),
+    mkChar('Enlace del pueblo','Piedras y cuchillo','#7a9a4a','E',1,2,{stones:5,knife:true})]},
+  enemies(){return[
+    mkEnemy([[2,21],[46,21]]),mkEnemy([[14,13],[34,13]]),mkEnemy([[14,18],[34,18]]),mkEnemy([[25,2],[25,29]]),
+    mkEnemy([[18,13],[23,13]],false,0,{jefe:true}),
+    mkEnemy([[31,8]],true,Math.PI/2,{mg:true,R:230,fov:.95}),
+    mkEnemy([[44,12]],true,Math.PI/2),mkEnemy([[7,18]],true,0)]},
+  initState(){
+    trainT=DIFFT[diff];blizT=40+Math.random()*30;
+    spots=[{x:45*T+10,y:10*T+10,base:2.2,amp:.9,ph:0,R:270,fov:.5,face:2.2,on:true,detect:0,state:'patrol',spot:true,cd:0}];
+    flakes=Array.from({length:380},()=>({x:Math.random()*VW,y:Math.random()*VH,s:1+Math.random()*2,v:20+Math.random()*40,p:Math.random()*6}));
+  },
+  restricted:t=>trainStopped&&!trainDown&&nearTrain(t,110),
+  railZone:t=>t.x>=13*T&&t.x<=33*T&&t.y>=8*T&&t.y<=19*T+10,
+  plantCheck:c=>(!train||!trainStopped)?'Todavía no hay nada que volar: el tren aún no ha llegado al apartadero.':trainDown?'El tren ya ha saltado por los aires.':!nearTrain(c,60)?'Acércate a los vagones para colocar la carga.':null,
+  explode(){
+    const cs=carsNow(),cx=cs.reduce((a,c)=>a+c.x,0)/cs.length,cy=cs.reduce((a,c)=>a+c.y,0)/cs.length,r=150;
+    trainDown=true;train.state='destroyed';plant=null;sfx('boom');
+    fx.push({k:'boom',x:cx,y:cy,t:1});
+    for(const e of enemies)if(!e.dead&&Math.hypot(e.x-cx,e.y-cy)<r)killEnemy(e,null,true,true);
+    for(const c of chars)if(!c.dead&&Math.hypot(c.x-cx,c.y-cy)<r){c.hidden=false;hurt(c,999)}
+    for(const e of enemies)if(!e.dead&&e.state!=='alert')investigate(e,cx,cy,5,null,'¡El tren!');
+    say('¡El tren blindado ha saltado por los aires! Todos a la dresina, al este.');
+  },
+  onEnter(c,b){
+    if(b.k==='station'){
+      if(!horario){horario=true;if(!train)trainT+=60;say('Horario robado del despacho: el tren llegará 60 segundos más tarde.');sfx('ok')}
+      else say(c.name+' se esconde en la estación.');
+      return true;
+    }
+    if(b.k==='jail'){
+      if(!freed){
+        if(!hasKey){say('La puerta del calabozo está cerrada con llave. La lleva el jefe de estación.');return false}
+        freed=true;
+        const m=mkChar('Maquinista','Agujas y dresina · mono de ferroviario','#a98a3e','F',0,0,{rail:true});
+        m.x=b.door.x;m.y=b.door.y;chars.push(m);buildBar();
+        say('¡Maquinista liberado! Es el único que sabe mover las agujas y conducir la dresina.');sfx('ok');
+      }else say(c.name+' se esconde en el calabozo.');
+      return true;
+    }
+    if(b.k==='signal'){say(c.name+' entra en la cabina de señales.'+(c.rail?' Pulsa L para mover la palanca.':' Solo el maquinista sabe qué agujas mover.'));return true}
+    say(c.name+' se esconde en el interior.');return true;
+  },
+  update(dt){
+    updTrain(dt);updSpots(dt);
+    blizT-=dt;
+    if(blizT<=0){blizOn=!blizOn;if(blizOn){blizT=9;say('Ventisca: la visibilidad cae para todos.')}else blizT=60+Math.random()*50}
+    for(const c of chars){if(c.dead||c.hidden)continue;for(const b of bodies)if(b.key&&dist(b,c)<28){b.key=false;hasKey=true;say('Llave del calabozo conseguida.');sfx('ok')}}
+    if(prints.length>900)prints=prints.filter(q=>tClock-q.t<PRINT_LIFE[diff]);
+  },
+  win:()=>trainDown&&chars.length===4&&chars.every(inExit),
+  passText:'El tren blindado ha cruzado la estación sin desviarse y llega al frente con su cargamento. La ofensiva empieza en desventaja.',
+  timeout:'Ha amanecido sobre la estación. La ofensiva empieza con el tren todavía en pie, o con el grupo sin lograr huir a tiempo.',
+  winText:'El tren blindado ha saltado por los aires y la dresina se aleja por la vía con los cuatro a bordo.',
+  timers:()=>[[train?'TREN BLINDADO':'EL TREN LLEGA EN',train?(train.state==='run'?'¡EN MARCHA!':train.state==='stopped'?'DETENIDO':'DESTRUIDO'):fmt(trainT),!train&&trainT<30],['AMANECER EN',fmt(tLeft),tLeft<90]],
+  hud:()=>[
+    [freed,'Liberar al maquinista'+(freed?'':hasKey?' (llave en mano: calabozo)':' (la llave la lleva el jefe)')],
+    [!!(train&&train.route==='siding'),'Desviar el tren a la vía muerta (cabina: L)'],
+    [trainDown,'Volar el tren blindado en el apartadero'],
+    [false,'Huir en la dresina (este) con los cuatro'],
+    [horario,'(Opc.) Horario en el despacho (+60 s)',1],
+    [phoneCut,'(Opc.) Cortar el cable del telégrafo',1]],
+  report:()=>`<li>Maquinista liberado ✔ · Horario: ${horario?'robado ✔':'no robado'} · Telégrafo: ${phoneCut?'cortado ✔':'intacto'}</li>`,
+  brief:()=>`<p style="letter-spacing:.3em;color:var(--mute);margin:0;font-size:12px">ESPAÑA · MISIÓN 2</p><h2>La estación, Teruel · 14-15 de diciembre de 1937</h2>
+  <h3>Contexto histórico</h3>
+  <p>El 15 de diciembre de 1937 el Ejército Popular de la República lanza la ofensiva sobre Teruel, en pleno invierno y con un frío extremo. La ciudad quedará cercada y los combates durarán semanas; los sublevados la recuperarán en febrero de 1938. El ferrocarril es vital para llevar refuerzos y munición al frente.</p>
+  <h3>La misión (ficticia)</h3>
+  <p>Un tren blindado cargado de munición llegará a una estación de la línea. Hay que <b>liberar al maquinista</b> preso (la llave la lleva el jefe de estación), <b>desviar el tren a la vía muerta</b> con la palanca de la cabina de señales, <b>volar los vagones</b> y <b>huir en la dresina</b> por el este con los cuatro.</p>
+  <p><small>Aquí la nieve delata: tus pasos dejan <b>huellas</b> que los centinelas siguen. Pisa el andén, las vías y los caminos pisados para no dejar rastro. Cuidado con el foco giratorio, con la ametralladora de la torre de agua y con las ventiscas. Nunca te quedes en la vía cuando llegue el tren.</small></p>`
+};
+const MS={m1:M1,m2:M2};
+
+/* ---- mecánicas de la misión 2 ---- */
+function updTrain(dt){
+  if(!train){
+    trainT-=dt;
+    if(trainT<20&&!trainWarn){trainWarn=true;say('Se oye un tren a lo lejos...');sfx('alarm')}
+    if(trainT<=0){train={s:0,route:null,state:'run',sm:0,ch:0};say('¡El tren blindado entra en la estación! No te quedes en la vía.')}
+    return;
+  }
+  if(train.state!=='run')return;
+  const a=JX-TX0,sStop=a+(SY-MY)+(BX-JX);
+  if(train.s>=a&&!train.route){train.route=switchSiding?'siding':'main';say(train.route==='siding'?'El tren toma el desvío hacia el apartadero.':'¡El tren sigue por la vía principal!')}
+  let v=150;
+  if(train.route==='siding')v=Math.max(30,Math.min(150,(sStop-train.s)*1.2));
+  train.s+=v*dt;
+  if(train.route==='siding'&&train.s>=sStop-.5){
+    train.s=sStop;train.state='stopped';trainStopped=true;
+    enemies.push(mkEnemy([[30,18],[41,18]]),mkEnemy([[30,20],[44,20]]));
+    say('El tren se ha detenido en la vía muerta. Baja la dotación. ¡Vuela los vagones!');sfx('boom');
+    return;
+  }
+  if(train.route==='main'&&train.s-a+JX>1010&&gs==='play'){end(false,M2.passText);return}
+  train.sm-=dt;if(train.sm<=0){train.sm=.3;const p=trainPos(train.s,0);fx.push({k:'smoke',x:p.x,y:p.y,t:1.2})}
+  train.ch-=dt;if(train.ch<=0){train.ch=.45;burst(.08,350,.12)}
+  for(const c of chars){
+    if(c.dead||c.hidden)continue;
+    for(const p of carsNow()){
+      const hx=p.dx?32:12,hy=p.dx?12:32;
+      if(Math.abs(c.x-p.x)<hx&&Math.abs(c.y-p.y)<hy){say('El tren ha arrollado a '+c.name+'.');hurt(c,999);break}
+    }
+  }
+}
+function updSpots(dt){
+  for(const s of spots){
+    if(!s.on)continue;
+    s.face=s.base+Math.sin(tClock*.55+s.ph)*s.amp;
+    let hit=null;
+    for(const c of chars){
+      if(c.dead||c.hidden)continue;
+      const d=dist(s,c);if(d>s.R*(blizOn?.8:1))continue;
+      if(Math.abs(wrap(Math.atan2(c.y-s.y,c.x-s.x)-s.face))>s.fov/2)continue;
+      if(!los(s.x,s.y,c.x,c.y))continue;
+      hit=c;break;
+    }
+    if(hit)s.detect=Math.min(1.2,s.detect+dt*1.6);else s.detect=Math.max(0,s.detect-dt*.6);
+    if(hit&&s.detect>=1&&tClock>s.cd){
+      s.cd=tClock+6;s.detect=.4;say('¡El foco os ha cogido!');sfx('alarm');
+      for(const e of enemies)if(!e.dead&&e.state!=='alert'&&dist(e,hit)<260){e.state='alert';e.last={x:hit.x,y:hit.y};e.tSeen=0;e.path=[];bark(e,'¡Ahí! ¡En la luz del foco!')}
+    }
+  }
+}
+function checkPrints(e){
+  const life=PRINT_LIFE[diff];let best=null,bd=1e9;
+  for(const q of prints){
+    if(q.seen||tClock-q.t>life)continue;
+    const d=Math.hypot(q.x-e.x,q.y-e.y);if(d>e.R*.8)continue;
+    if(d>24&&Math.abs(wrap(Math.atan2(q.y-e.y,q.x-e.x)-e.face))>e.fov/2)continue;
+    if(!los(e.x,e.y,q.x,q.y))continue;
+    if(d<bd){bd=d;best=q}
+  }
+  if(best){
+    for(const q of prints)if(Math.hypot(q.x-best.x,q.y-best.y)<26)q.seen=true;
+    investigate(e,best.x,best.y,2,null,'Huellas... ¿quién ha pasado por aquí?');
+    e.trail={n:best.n,who:best.w};
+  }
+}
+function trailNext(e){
+  const life=PRINT_LIFE[diff];let best=null;
+  for(const q of prints){
+    if(q.w!==e.trail.who||q.n<=e.trail.n||q.n>e.trail.n+5||tClock-q.t>life)continue;
+    if(!best||q.n>best.n)best=q;
+  }
+  return best&&Math.hypot(best.x-e.x,best.y-e.y)<90?best:null;
+}
+function leverPull(){
+  if(L.id!=='m2'||gs!=='play')return;
+  const c=cur();
+  if(c.dead||!c.hidden||!c.inside||c.inside.k!=='signal')return say('Entra en la cabina de señales (clic derecho sobre ella) para usar la palanca.');
+  if(!c.rail)return say('Solo el maquinista sabe qué agujas mover.');
+  if(train&&train.route)return say('Ya es tarde: el tren ha pasado el desvío.');
+  switchSiding=!switchSiding;sfx('door');
+  say(switchSiding?'Agujas puestas: el tren irá al apartadero.':'Agujas puestas: el tren seguirá por la vía principal.');
+}
+
+function init(){
+  L=curM||M1;setupMap(L.build());
+  chars=L.chars();enemies=L.enemies();
+  bodies=[];fx=[];logs=[];armed=null;sel=0;plant=null;depotDown=false;paused=false;tClock=0;marker=null;tLeft=L.limit;docs=false;phoneCut=false;prevAlert=false;
+  train=null;trainT=0;trainStopped=false;trainDown=false;switchSiding=false;hasKey=false;freed=false;horario=false;prints=[];printN=0;spots=[];blizT=1e9;blizOn=false;trainWarn=false;
   st={alarms:0,kills:0,shots:0,hidden:0};
   for(const l of lamps)l.on=true;
-  say('Vuela el almacén y escapa por el este antes del amanecer.');
+  if(L.initState)L.initState();
+  $('hsub').textContent=L.headline;
+  bakeAll();
+  say(L.firstMsg);
   buildBar();centerOn(chars[0]);
 }
 function say(s){logs.push({s,t:6});if(logs.length>6)logs.shift()}
@@ -207,33 +470,27 @@ function bark(e,s){if(e.dead||e.barkCd>0)return;e.barkCd=3;fx.push({k:'bark',e,s
 function investigate(e,x,y,wait,body,line){
   if(e.dead||e.state==='alert')return;
   if(e.mg){e.sus={x,y};e.state='investigate';e.wait=wait;e.arrived=true;e.path=[];if(line)bark(e,line);return}
-  e.state='investigate';e.sus={x,y};e.wait=wait||3;e.arrived=false;e.body=body||null;e.path=findPath(e.x,e.y,x,y);
+  e.state='investigate';e.sus={x,y};e.wait=wait||3;e.arrived=false;e.body=body||null;e.trail=null;e.path=findPath(e.x,e.y,x,y);
   if(line)bark(e,line);
 }
 function noise(x,y,r,src,line){for(const o of enemies)if(o!==src&&!o.dead&&Math.hypot(o.x-x,o.y-y)<r)investigate(o,x,y,3,null,line||'¿Qué ha sido eso?')}
 function alertNear(e,r){for(const o of enemies)if(!o.dead&&o!==e&&o.state!=='alert'&&dist(o,e)<r){o.state='alert';o.last={...e.last};o.tSeen=0;o.path=[];bark(o,'¡Alarma!')}}
-function killEnemy(e,how,byPlayer,noUniform){e.dead=true;e.state='dead';bodies.push({x:e.x,y:e.y,found:false,uniform:!noUniform});fx.push({k:'x',x:e.x,y:e.y,t:.4});if(byPlayer)st.kills++;if(how)say(how)}
+function killEnemy(e,how,byPlayer,noUniform){e.dead=true;e.state='dead';bodies.push({x:e.x,y:e.y,found:false,uniform:!noUniform,key:!!e.jefe});fx.push({k:'x',x:e.x,y:e.y,t:.4});if(byPlayer)st.kills++;if(how)say(how)}
 function hurt(c,dmg){c.hp-=dmg;if(c.hp<=0&&!c.dead){c.dead=true;c.hp=0;say(c.name+' ha caído.');if(gs==='play')end(false,c.name+' ha caído. En una operación así no hay segundas oportunidades... salvo reintentarlo.')}}
-function explode(){
-  const cx=dep.x+dep.w/2,cy=dep.y+dep.h/2,r=150;depotDown=true;plant=null;sfx('boom');
-  fx.push({k:'boom',x:cx,y:cy,t:1});
-  for(const e of enemies)if(!e.dead&&Math.hypot(e.x-cx,e.y-cy)<r)killEnemy(e,null,true,true);
-  for(const c of chars)if(!c.dead&&Math.hypot(c.x-cx,c.y-cy)<r){c.hidden=false;hurt(c,999)}
-  for(const e of enemies)if(!e.dead&&e.state!=='alert')investigate(e,cx,cy,5,null,'¡El almacén!');
-  say('¡El almacén ha volado! Todos a la salida, al este.');
-}
+function explode(){L.explode()}
 
 /* ---------- actualización ---------- */
-const disg=(t,e)=>t.disguise&&e.state!=='alert'&&distRect(t,dep)>130;
+const disg=(t,e)=>e.state!=='alert'&&((t.disguise&&!L.restricted(t))||(t.rail&&L.railZone&&L.railZone(t)));
 function canSee(e,t,d){
   if(t.hidden)return false;
-  let rng=(e.state==='alert'?e.R*1.4:e.R)*(t.crouch&&e.state!=='alert'?.7:1);if(disg(t,e))rng=Math.min(rng,55);if(d>rng)return false;
+  let rng=(e.state==='alert'?e.R*1.4:e.R)*(t.crouch&&e.state!=='alert'?.7:1)*(blizOn?.65:1);if(disg(t,e))rng=Math.min(rng,55);if(d>rng)return false;
   if(d>26){const a=Math.atan2(t.y-e.y,t.x-e.x);if(Math.abs(wrap(a-e.face))>(e.state==='alert'?e.fov*.95:e.fov/2))return false}
   return los(e.x,e.y,t.x,t.y);
 }
 function updEnemy(e,dt){
   if(e.dead)return;
   e.shootCd-=dt;e.barkCd-=dt;const D=DIFF[diff];
+  if(L.prints&&e.state==='patrol'&&!e.mg){e.pt=(e.pt||0)-dt;if(e.pt<=0){e.pt=.35;checkPrints(e)}}
   let tgt=null,bd=1e9;
   for(const c of chars){if(c.dead)continue;const d=dist(e,c);if(d<bd&&canSee(e,c,d)){bd=d;tgt=c}}
   if(tgt){
@@ -268,6 +525,7 @@ function updEnemy(e,dt){
     else{
       if(e.mg)turn(e,Math.atan2(e.sus.y-e.y,e.sus.x-e.x),3*dt);
       if(!e.arrived){e.arrived=true;
+        if(e.trail){const nx=trailNext(e);if(nx){e.path=findPath(e.x,e.y,nx.x,nx.y);e.arrived=false;e.trail.n=nx.n;e.wait=3;return}}
         if(e.body){say('Han encontrado un cuerpo: los soldados cercanos se ponen en guardia.');noise(e.x,e.y,200,e,'¡Han matado a uno!')}}
       e.wait-=dt;if(!e.mg)e.face+=dt*1.3;
       if(e.wait<=0){e.state='patrol';e.path=[];e.arrived=true;e.wait=0;e.body=null}
@@ -314,12 +572,17 @@ function updChar(c,dt){
   }
   if(c.task&&c.task.type==='enter'){
     const b=c.task.b;
-    if(dist(c,b.door)<10){c.hidden=true;c.crouch=false;c.task=null;c.path=[];sfx('door');
-      if(b===hall&&!docs){docs=true;say('Plano de defensas recuperado en el ayuntamiento.');sfx('ok')}
-      else say(c.name+' se esconde en el interior.')}
-    else if(!c.path.length)c.task=null;
+    if(dist(c,b.door)<10){
+      const ok=L.onEnter?L.onEnter(c,b):true;
+      if(ok===false){c.task=null;c.path=[]}
+      else{c.hidden=true;c.inside=b;c.crouch=false;c.task=null;c.path=[];sfx('door')}
+    }else if(!c.path.length)c.task=null;
   }
-  if(moveAlong(c,c.crouch?42:85,dt))c.face=Math.atan2(c.my,c.mx);
+  const ox=c.x,oy=c.y;
+  if(moveAlong(c,c.crouch?42:85,dt)){
+    c.face=Math.atan2(c.my,c.mx);
+    if(L.prints){c.pd=(c.pd||0)+Math.hypot(c.x-ox,c.y-oy);if(c.pd>14){c.pd=0;if(!L.noPrint(c.x,c.y))prints.push({x:c.x,y:c.y,t:tClock,w:c.name,n:++printN,side:printN%2})}}
+  }
 }
 function update(dt){
   tClock+=dt;tLeft-=dt;
@@ -330,9 +593,10 @@ function update(dt){
   for(const f of fx)f.t-=dt;fx=fx.filter(f=>f.t>0);
   for(const l of logs)l.t-=dt;logs=logs.filter(l=>l.t>0);
   if(marker){marker.t-=dt;if(marker.t<=0)marker=null}
+  if(L.update)L.update(dt);
   if(gs==='play'){
-    if(depotDown&&chars.every(c=>!c.dead&&!c.hidden&&c.x>=exitZ.x&&c.x<=exitZ.x+exitZ.w&&c.y>=exitZ.y&&c.y<=exitZ.y+exitZ.h))end(true);
-    else if(tLeft<=0)end(false,'Ha amanecido. La ofensiva empieza con el pueblo todavía en pie y el almacén intacto, o con el grupo sin salir a tiempo.');
+    if(L.win())end(true);
+    else if(tLeft<=0)end(false,L.timeout);
   }
 }
 
@@ -353,7 +617,7 @@ function plantDyn(){
   const c=cur();if(!usable(c))return;
   if(c.dyn===undefined)return say('Solo el minero lleva dinamita.');
   if(c.dyn<=0||plant)return;
-  if(distRect(c,dep)>55)return say('Acércate a la pared del almacén para colocar la carga.');
+  const msg=L.plantCheck(c);if(msg)return say(msg);
   c.dyn=0;plant={t:6,x:c.x,y:c.y,last:6};breakIfSeen(c);say('Carga colocada: ¡6 segundos! Aléjate.');
 }
 function crouchToggle(){const c=cur();if(!usable(c))return;c.crouch=!c.crouch}
@@ -372,16 +636,16 @@ function disguiseToggle(){
 function cutWire(){
   const c=cur();if(!usable(c))return;
   if(phoneCut)return say('El cable ya está cortado.');
-  if(dist(c,pole)>34)return say('Necesitas estar junto al poste del teléfono.');
+  if(!pole||dist(c,pole)>34)return say('Necesitas estar junto al poste del teléfono.');
   startChan(c,2.5,'Cortando el cable',()=>{phoneCut=true;breakIfSeen(c);sfx('ok');say('Teléfono cortado: las alarmas ya no se propagan tan lejos.')});
 }
 /* ---------- selección por pantalla ---------- */
 function enemyAtS(sp,r){r=r||18;let b=null,bd=r;for(const e of enemies){if(e.dead)continue;const s=toScr(e.x,e.y,14),d=Math.hypot(s.x-sp.x,s.y-sp.y);if(d<bd){bd=d;b=e}}return b}
-function lampAtS(sp){return lamps.find(l=>{if(!l.on)return false;const s=toScr(l.x,l.y,36);return Math.hypot(s.x-sp.x,s.y-sp.y)<16})}
+function lampAtS(sp){return lamps.concat(spots).find(l=>{if(!l.on)return false;const s=toScr(l.x,l.y,l.spot?44:36);return Math.hypot(s.x-sp.x,s.y-sp.y)<16})}
 function inPoly(pt,poly){let ins=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const a=poly[i],b=poly[j];if((a.y>pt.y)!==(b.y>pt.y)&&pt.x<(b.x-a.x)*(pt.y-a.y)/(b.y-a.y)+a.x)ins=!ins}return ins}
 function buildingAtS(sp){
   for(const b of blds){
-    if(b.k==='depot')continue;
+    if(b.k==='depot'||KIND[b.k].noenter)continue;
     const x0=b.x,y0=b.y,x1=b.x+b.w,y1=b.y+b.h,H=b.H;
     const poly=[toScr(x0,y1,H),toScr(x0,y0,H),toScr(x1,y0,H),toScr(x1,y0,0),toScr(x1,y1,0),toScr(x0,y1,0)];
     if(inPoly(sp,poly))return b;
@@ -404,7 +668,7 @@ function leftClick(sp){
     if(dist(c,tg)>300||!los(c.x,c.y,tg.x,tg.y))return say('Sin línea de tiro o demasiado lejos.');
     if(c.disguise){c.disguise=false;say('Los disparos delatan el uniforme.')}
     c.ammo--;c.cd=1.5;st.shots++;sfx('shot');fx.push({k:'tr',x1:c.x,y1:c.y,x2:tg.x,y2:tg.y,t:.12});
-    if(e)killEnemy(e,'Disparo certero... pero se ha oído.',true);else{l.on=false;sfx('glass');say('Farola apagada.')}
+    if(e)killEnemy(e,'Disparo certero... pero se ha oído.',true);else{l.on=false;sfx('glass');say(l.spot?'Foco destruido.':'Farola apagada.')}
     noise(c.x,c.y,260,e||null);armed=null;return;
   }
   if(armed==='stone'){
@@ -461,15 +725,21 @@ function mkGround(base,cob){return ptex(128,128,(g,w,h)=>{g.fillStyle=base;g.fil
   if(cob){for(let y=0;y<h;y+=16)for(let x=(y/16%2)*8;x<w;x+=16){g.fillStyle=`rgba(${r()<.5?'40,30,20':'255,240,200'},${.06+r()*.1})`;g.fillRect(x+1,y+1,14,14);g.strokeStyle='rgba(40,30,20,.28)';g.strokeRect(x+.5,y+.5,15,15)}}
   else for(let i=0;i<260;i++){g.fillStyle=`rgba(${r()<.5?'70,52,30':'225,205,155'},${.05+r()*.12})`;g.fillRect(r()*w,r()*h,2+r()*5,2+r()*4)}})}
 function mkDoor(w,h,col){return ptex(w,h,(g)=>{g.fillStyle='#1c150d';g.fillRect(0,0,w,h);g.fillStyle=col;g.fillRect(3,3,w-6,h-3);g.strokeStyle='rgba(0,0,0,.4)';for(let x=8;x<w-3;x+=8){g.beginPath();g.moveTo(x,3);g.lineTo(x,h);g.stroke()}if(w>50){g.fillStyle='#1c150d';g.fillRect(w/2-1,3,2,h)}g.fillStyle='#c9a24b';g.fillRect(w-9,h*.55,3,3)})}
+function mkSnow(base,sd){return ptex(128,128,(g,w,h)=>{g.fillStyle=base;g.fillRect(0,0,w,h);const r=rndf(sd);for(let i=0;i<300;i++){g.fillStyle=`rgba(${r()<.5?'120,140,170':'255,255,255'},${.05+r()*.12})`;g.fillRect(r()*w,r()*h,2+r()*6,1+r()*3)}})}
+function mkBrick(base){return ptex(96,64,(g,w,h)=>{g.fillStyle=base;g.fillRect(0,0,w,h);for(let y=0;y<h;y+=8)for(let x=(y/8%2)*8;x<w;x+=16){g.fillStyle=`rgba(0,0,0,${.05+((x*5+y*3)%7)/60})`;g.fillRect(x+1,y+1,14,6)}g.strokeStyle='rgba(0,0,0,.25)';for(let y=0;y<h;y+=8){g.beginPath();g.moveTo(0,y);g.lineTo(w,y);g.stroke()}const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'rgba(255,255,255,.1)');gr.addColorStop(1,'rgba(0,0,0,.3)');g.fillStyle=gr;g.fillRect(0,0,w,h)})}
+function mkPlank(base){return ptex(96,64,(g,w,h)=>{g.fillStyle=base;g.fillRect(0,0,w,h);for(let x=0;x<w;x+=12){g.fillStyle=`rgba(0,0,0,${.06+((x*7)%5)/50})`;g.fillRect(x,0,11,h);g.fillStyle='rgba(0,0,0,.3)';g.fillRect(x+11,0,1,h)}const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'rgba(220,230,255,.18)');gr.addColorStop(1,'rgba(0,0,0,.3)');g.fillStyle=gr;g.fillRect(0,0,w,h)})}
+function mkSnowRoof(base){return ptex(96,96,(g,w,h)=>{g.fillStyle=base;g.fillRect(0,0,w,h);const r=rndf(9);for(let i=0;i<90;i++){g.fillStyle=`rgba(${r()<.5?'150,165,190':'255,255,255'},${.1+r()*.2})`;g.fillRect(r()*w,r()*h,4+r()*14,2+r()*6)}g.fillStyle='rgba(120,70,50,.35)';for(let i=0;i<10;i++)g.fillRect(r()*w,r()*h,8,4)})}
 function mkWindow(lit){return ptex(24,32,(g,w,h)=>{g.fillStyle='#3a2c1a';g.fillRect(0,0,w,h);g.fillStyle=lit?'#f2c46a':'#14110c';g.fillRect(3,3,w-6,h-6);g.strokeStyle='#3a2c1a';g.lineWidth=2;g.beginPath();g.moveTo(w/2,3);g.lineTo(w/2,h-3);g.moveTo(3,h/2);g.lineTo(w-3,h/2);g.stroke()})}
 const TEX={
   tex_ground_dirt:mkGround('#8d7d59',false),tex_ground_cobble:mkGround('#a39478',true),
   tex_wall_house:mkWall('#d6c59c'),tex_wall_church:mkWall('#b9b19c'),tex_wall_depot:mkWall('#8c7a5a'),tex_wall_hall:mkWall('#cdb690'),
   tex_roof_house_a:mkRoof('#a4633f'),tex_roof_house_b:mkRoof('#935537'),tex_roof_church:mkRoof('#77736a'),tex_roof_depot:mkRoof('#4f4331'),tex_roof_hall:mkRoof('#7b4a38'),
-  door_house:mkDoor(40,72,'#3d2c1a'),door_depot:mkDoor(64,72,'#4a3a22'),window_lit:mkWindow(true),window_dark:mkWindow(false)
+  door_house:mkDoor(40,72,'#3d2c1a'),door_depot:mkDoor(64,72,'#4a3a22'),window_lit:mkWindow(true),window_dark:mkWindow(false),
+  tex_ground_snow:mkSnow('#c7d2de',31),tex_snow_trodden:mkSnow('#8f9cab',33),tex_wall_station:mkBrick('#8a5a45'),tex_wall_shed:mkPlank('#6d6a60'),
+  tex_roof_snow_a:mkSnowRoof('#d8e0ea'),tex_roof_snow_b:mkSnowRoof('#c3ceda'),tex_roof_station:mkRoof('#5a5a60'),tex_roof_signal:mkRoof('#4d5a55')
 };
 const SPRITES=['prop_crate','prop_truck','prop_sandbag','prop_lamp','prop_pole','cuerpo_soldado'];
-const UNITS=['minero','tirador','enlace','soldado','ametrallador'],DIRS=['se','sw','nw','ne'];
+const UNITS=['minero','tirador','enlace','soldado','ametrallador','maquinista'],DIRS=['se','sw','nw','ne'];
 for(const u of UNITS)for(const d of DIRS)SPRITES.push('char_'+u+'_'+d);
 const ASSETS=Object.keys(TEX).concat(SPRITES),ASSETN=ASSETS.length;
 function loadAssets(){
@@ -504,24 +774,28 @@ function bakeGround(){
   g.fillStyle='#0b0a07';g.fillRect(0,0,WW,WH);
   const P=(x,y)=>({x:PX(x,y),y:PY(x,y,0)});
   const O=P(0,0),U={x:P(1000,0).x-O.x,y:P(1000,0).y-O.y},V={x:P(0,640).x-O.x,y:P(0,640).y-O.y};
-  qtex(g,TEX.tex_ground_dirt,O,U,V,10,6);
-  const O2=P(18*T,8*T);qtex(g,TEX.tex_ground_cobble,O2,{x:P(34*T,8*T).x-O2.x,y:P(34*T,8*T).y-O2.y},{x:P(18*T,12*T).x-O2.x,y:P(18*T,12*T).y-O2.y},4,1);
-  const r=rndf(21);
-  for(let i=0;i<2200;i++){const x=r()*1000,y=r()*640;g.fillStyle=`rgba(${r()<.5?'70,52,30':'230,210,160'},${.06+r()*.1})`;const p=P(x,y);g.fillRect(p.x,p.y,2+r()*3,1+r()*2)}
+  qtex(g,TEX[L.ground.base],O,U,V,10,6);
+  if(L.ground.plaza){const O2=P(18*T,8*T);qtex(g,TEX.tex_ground_cobble,O2,{x:P(34*T,8*T).x-O2.x,y:P(34*T,8*T).y-O2.y},{x:P(18*T,12*T).x-O2.x,y:P(18*T,12*T).y-O2.y},4,1)}
+  const r=rndf(21),sc=L.ground.specks;
+  for(let i=0;i<2200;i++){const x=r()*1000,y=r()*640;g.fillStyle=`rgba(${r()<.5?sc[0]:sc[1]},${.06+r()*.1})`;const p=P(x,y);g.fillRect(p.x,p.y,2+r()*3,1+r()*2)}
+  if(L.id==='m2'){
+    const rt=(q,tex)=>{const O=P(q.x,q.y),A=P(q.x+q.w,q.y),B=P(q.x,q.y+q.h);qtex(g,tex,O,{x:A.x-O.x,y:A.y-O.y},{x:B.x-O.x,y:B.y-O.y},Math.max(1,Math.round(q.w/80)),Math.max(1,Math.round(q.h/80)))};
+    for(const q of trodden.slice(0,4))rt(q,TEX.tex_snow_trodden);
+    track(g,P,0,MY,1000,MY);track(g,P,JX,SY,1000,SY);track(g,P,JX,MY,JX,SY);
+  }
   for(const b of blds){polyG(g,[P(b.x-4,b.y-4),P(b.x+b.w+14,b.y-4),P(b.x+b.w+14,b.y+b.h+14),P(b.x-4,b.y+b.h+14)],'rgba(0,0,0,.32)')}
   const edge='rgba(8,6,4,.62)';
   polyG(g,[P(0,0),P(1000,0),P(1000,T),P(0,T)],edge);polyG(g,[P(0,640-T),P(1000,640-T),P(1000,640),P(0,640)],edge);
   polyG(g,[P(0,0),P(T,0),P(T,640),P(0,640)],edge);polyG(g,[P(1000-T,0),P(1000,0),P(1000,640),P(1000-T,640)],edge);
 }
 function bakeBuilding(b,idx){
-  const H=b.H,x0=b.x,y0=b.y,x1=b.x+b.w,y1=b.y+b.h,church=b.k==='church',extra=church?42:0;
+  const K=KIND[b.k],H=b.H,x0=b.x,y0=b.y,x1=b.x+b.w,y1=b.y+b.h,extra=K.tower?42:K.tank?40:0;
   const minX=PX(x0,y1)-6,maxX=PX(x1,y0)+6,minY=PY(x0,y0,H+extra)-10,maxY=PY(x1,y1,0)+6;
   b.bx=minX;b.by=minY;
   const cv=document.createElement('canvas');cv.width=Math.ceil(maxX-minX);cv.height=Math.ceil(maxY-minY);b.cv=cv;
   const g=cv.getContext('2d');
   const P=(x,y,z)=>({x:PX(x,y)-minX,y:PY(x,y,z)-minY});
-  const wallT=TEX['tex_wall_'+(b.k==='h'?'house':b.k)];
-  const roofT=TEX[b.k==='h'?'tex_roof_house_'+(idx%2?'b':'a'):'tex_roof_'+b.k];
+  const wallT=TEX['tex_wall_'+K.wall],roofT=TEX[K.roof[idx%K.roof.length]];
   const SW={sx:x0,sy:y1,dx:1,dy:0,len:b.w},SE={sx:x1,sy:y1,dx:0,dy:-1,len:b.h};
   const fp=(f,s,z)=>P(f.sx+f.dx*s,f.sy+f.dy*s,z);
   function face(f,z0,z1,tex,shade){
@@ -534,29 +808,36 @@ function bakeBuilding(b,idx){
     g.strokeStyle='rgba(0,0,0,.55)';g.lineWidth=1.5;g.beginPath();[P(ax0,ay0,z),P(ax1,ay0,z),P(ax1,ay1,z),P(ax0,ay1,z)].forEach((p,i)=>i?g.lineTo(p.x,p.y):g.moveTo(p.x,p.y));g.closePath();g.stroke()}
   face(SE,0,H,wallT,.4);face(SW,0,H,wallT,.15);
   const r=rndf(idx*97+13);
-  for(const f of [SW,SE]){
+  if(!K.nowin)for(const f of [SW,SE]){
     const n=Math.max(1,Math.floor(f.len/34));
     for(let i=0;i<n;i++){
       const s=(i+.5)*f.len/n;
-      if(f===SW&&Math.abs(s-f.len/2)<(b.k==='depot'?34:20))continue;
+      if(f===SW&&Math.abs(s-f.len/2)<(K.door?34:20))continue;
       decal(f,s-6,12,H-10,16,r()<.4?TEX.window_lit:TEX.window_dark);
     }
   }
-  if(b.k==='depot')decal(SW,b.w/2-14,28,24,24,TEX.door_depot);else decal(SW,b.w/2-7,14,24,24,TEX.door_house);
-  const label={hall:'AYUNTAMIENTO',depot:'ALMACÉN',church:'IGLESIA'}[b.k];
-  if(label){const O=fp(SW,b.w/2,H-4);g.save();g.transform(1,.5,0,1,O.x,O.y);g.fillStyle='#f0e4c4';g.font='bold 9px Georgia';g.textAlign='center';g.fillText(label,0,0);g.restore()}
+  if(!K.nodoor){if(K.door)decal(SW,b.w/2-14,28,24,24,TEX[K.door]);else decal(SW,b.w/2-7,14,24,24,TEX.door_house)}
+  if(K.label){const O=fp(SW,b.w/2,H-4);g.save();g.transform(1,.5,0,1,O.x,O.y);g.fillStyle='#f0e4c4';g.font='bold 9px Georgia';g.textAlign='center';g.fillText(K.label,0,0);g.restore()}
   top(x0,y0,x1,y1,H,roofT);
-  if(church){
+  if(K.tower){
     const tx0=x1-34,tx1=x1-6,ty0=y0+8,ty1=y0+36,zt=H+42;
     const TSE={sx:tx1,sy:ty1,dx:0,dy:-1,len:ty1-ty0},TSW={sx:tx0,sy:ty1,dx:1,dy:0,len:tx1-tx0};
     face(TSE,H,zt,wallT,.4);face(TSW,H,zt,wallT,.15);
     decal(TSW,6,16,zt-8,16,TEX.window_dark);decal(TSE,6,16,zt-8,16,TEX.window_dark);
     top(tx0,ty0,tx1,ty1,zt,TEX.tex_roof_church);
   }
+  if(K.tank){
+    const c0=P((x0+x1)/2,(y0+y1)/2,H),c1=P((x0+x1)/2,(y0+y1)/2,H+30);
+    g.fillStyle='#3e352c';g.fillRect(c0.x-24,c1.y,48,c0.y-c1.y);
+    g.beginPath();g.ellipse(c0.x,c0.y,24,12,0,0,7);g.fill();
+    g.fillStyle='#564a3d';g.beginPath();g.ellipse(c1.x,c1.y,24,12,0,0,7);g.fill();
+    g.strokeStyle='rgba(0,0,0,.5)';g.lineWidth=1.5;g.stroke();
+    g.fillStyle='rgba(255,255,255,.5)';g.beginPath();g.ellipse(c1.x,c1.y-1,20,9,0,0,7);g.fill();
+  }
 }
 function bakeAll(){
   bakeGround();
-  blds.forEach((b,i)=>{b.H=HG[b.k];bakeBuilding(b,i)});
+  blds.forEach((b,i)=>bakeBuilding(b,i));
   makeStatics();
 }
 
@@ -620,18 +901,60 @@ function makeStatics(){
   for(const b of blds)statics.push({x0:b.x,y0:b.y,x1:b.x+b.w,y1:b.y+b.h,d:()=>{if(b===dep&&depotDown)drawRubble();else ctx.drawImage(b.cv,b.bx-cam.x,b.by-cam.y)}});
   for(const [x,y,w,h] of crates)for(let i=0;i<w;i++)for(let j=0;j<h;j++){const px=(x+i)*T,py=(y+j)*T;statics.push({x0:px,y0:py,x1:px+T,y1:py+T,d:()=>{if(!propSprite('prop_crate',px+T,py+T))crateBox(px,py)}})}
   for(const [x,y,w,h] of sandbags)for(let i=0;i<w;i++)for(let j=0;j<h;j++){const px=(x+i)*T,py=(y+j)*T;statics.push({x0:px,y0:py,x1:px+T,y1:py+T,d:()=>{if(!propSprite('prop_sandbag',px+T,py+T))sandBox(px,py)}})}
-  statics.push({x0:truck.x*T,y0:truck.y*T,x1:(truck.x+truck.w)*T,y1:(truck.y+truck.h)*T,d:drawTruck});
+  if(truck)statics.push({x0:truck.x*T,y0:truck.y*T,x1:(truck.x+truck.w)*T,y1:(truck.y+truck.h)*T,d:drawTruck});
   for(const l of lamps)statics.push({x0:l.x-2,y0:l.y-2,x1:l.x+2,y1:l.y+2,d:()=>drawLamp(l)});
-  statics.push({x0:pole.x-2,y0:pole.y-2,x1:pole.x+2,y1:pole.y+2,d:drawPole});
+  if(pole)statics.push({x0:pole.x-2,y0:pole.y-2,x1:pole.x+2,y1:pole.y+2,d:drawPole});
+  if(L.id==='m2'){
+    statics.push({x0:930-16,y0:MY-12,x1:930+16,y1:MY+12,d:drawDresina});
+    statics.push({x0:JX+10,y0:MY-34,x1:JX+22,y1:MY-22,d:drawSemaphore});
+    for(const s of spots)statics.push({x0:s.x-3,y0:s.y-3,x1:s.x+3,y1:s.y+3,d:()=>drawSpotPost(s)});
+  }
+}
+function drawDresina(){
+  const x=930;
+  drawBox(x-16,MY-9,x+16,MY+9,5,'#6b5a3a','#554729','#41361f');
+  const a=toScr(x-4,MY,5),b=toScr(x-4,MY,22),c=toScr(x+4,MY,22);
+  ctx.strokeStyle='#2b2218';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.moveTo(b.x-10,b.y-2);ctx.lineTo(c.x+10,c.y+2);ctx.stroke();
+}
+function drawSemaphore(){
+  const s=toScr(JX+16,MY-28);
+  ctx.strokeStyle='#3b3228';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(s.x,s.y-34);ctx.stroke();
+  ctx.fillStyle=switchSiding?'#4ab84a':'#d94a2a';ctx.beginPath();ctx.arc(s.x,s.y-36,5,0,7);ctx.fill();
+  ctx.strokeStyle='#15130e';ctx.lineWidth=1.5;ctx.stroke();
+}
+function drawSpotPost(s){
+  const p=toScr(s.x,s.y);
+  ctx.strokeStyle='#2b2620';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x,p.y-46);ctx.stroke();
+  drawBox(s.x-5,s.y-5,s.x+5,s.y+5,6,'#555','#3d3d3d','#2d2d2d');
+  const h=toScr(s.x,s.y,50);ctx.fillStyle=s.on?'#e8f2ff':'#555';ctx.beginPath();ctx.ellipse(h.x,h.y,8,5,0,0,7);ctx.fill();ctx.strokeStyle='#222';ctx.lineWidth=1.5;ctx.stroke();
+}
+function drawCar(p){
+  const dead=train&&train.state==='destroyed',cx=p.x,cy=p.y,dx=p.dx,dy=p.dy;
+  const x0=dx?cx-30:cx-11,x1=dx?cx+30:cx+11,y0=dx?cy-11:cy-30,y1=dx?cy+11:cy+30;
+  if(p.i===0){
+    const c=dead?['#2a2622','#1f1b18','#161311']:['#38383e','#27272c','#1b1b1f'];
+    drawBox(x0,y0,x1,y1,18,...c);
+    const fx0=cx+dx*14,fy0=cy+dy*14,bx=cx-dx*16,by=cy-dy*16;
+    drawBox(fx0-4,fy0-4,fx0+4,fy0+4,32,...c);
+    drawBox(bx-9,by-9,bx+9,by+9,28,...c);
+  }else{
+    const c=dead?['#2c2824','#211d1a','#171412']:['#626b55','#4b5340','#3a4031'];
+    drawBox(x0,y0,x1,y1,22,...c);
+    const m=toScr(cx,cy,23);ctx.fillStyle='rgba(0,0,0,.45)';ctx.fillRect(m.x-6,m.y-1,12,2);
+  }
 }
 function dynItems(){
   const it=[];
   for(const b of bodies)it.push({x0:b.x-6,y0:b.y-6,x1:b.x+6,y1:b.y+6,d:()=>drawBody(b)});
   if(plant)it.push({x0:plant.x-4,y0:plant.y-4,x1:plant.x+4,y1:plant.y+4,d:()=>{drawBox(plant.x-5,plant.y-5,plant.x+5,plant.y+5,7,'#e0583a','#b73f27','#8f2f1d');const s=toScr(plant.x,plant.y,18);ctx.fillStyle='#fff';ctx.font='bold 14px Georgia';ctx.fillText(Math.ceil(plant.t),s.x-4,s.y)}});
+  if(train)for(const p of carsNow()){
+    const hx=p.dx?30:11,hy=p.dx?11:30;
+    it.push({x0:p.x-hx,y0:p.y-hy,x1:p.x+hx,y1:p.y+hy,d:()=>drawCar(p)});
+  }
   for(const e of enemies)if(!e.dead)it.push({x0:e.x-5,y0:e.y-5,x1:e.x+5,y1:e.y+5,d:()=>drawUnit(e,e.mg?'ametrallador':'soldado',{col:e.state==='alert'?'#7d4a40':'#667050',helm:'#4c5240',gun:true,mg:e.mg})});
   for(const c of chars){
     if(c.dead||c.hidden)continue;
-    const type=c.disguise?'soldado':c.letter==='M'?'minero':c.letter==='T'?'tirador':'enlace';
+    const type=c.disguise?'soldado':c.letter==='M'?'minero':c.letter==='T'?'tirador':c.letter==='F'?'maquinista':'enlace';
     it.push({x0:c.x-5,y0:c.y-5,x1:c.x+5,y1:c.y+5,d:()=>drawUnit(c,type,c.disguise?{col:'#667050',helm:'#4c5240',gun:true,crouch:c.crouch}:{col:c.col,helm:c.letter==='M'?'#3a2a20':'#2a2a2a',gun:c.ammo!==undefined,crouch:c.crouch})});
   }
   return it;
@@ -666,17 +989,46 @@ function glowS(d,p,R,a){d.save();d.translate(p.x,p.y);d.scale(1,.5);const g=d.cr
 const dk=document.createElement('canvas');dk.width=VW;dk.height=VH;
 function drawDark(){
   const d=dk.getContext('2d');d.globalCompositeOperation='source-over';d.clearRect(0,0,VW,VH);
-  const k=tLeft<90?Math.max(.18,.52*(tLeft/90)):.52;
-  d.fillStyle=`rgba(6,10,32,${k})`;d.fillRect(0,0,VW,VH);
+  const ba=L.dark.a,k=tLeft<90?Math.max(.18,ba*(tLeft/90)):ba;
+  d.fillStyle=`rgba(${L.dark.col},${k})`;d.fillRect(0,0,VW,VH);
   d.globalCompositeOperation='destination-out';
   for(const l of lamps)if(l.on)glowS(d,toScr(l.x,l.y),l.r+25,.88);
   for(const c of chars)if(!c.dead&&!c.hidden)glowS(d,toScr(c.x,c.y),70,.7);
   for(const f of fx)if(f.k==='boom')glowS(d,toScr(f.x,f.y),260,f.t);
   if(plant)glowS(d,toScr(plant.x,plant.y),40,.6);
+  if(train&&train.state==='run')for(const p of carsNow())if(p.i===0)glowS(d,toScr(p.x,p.y),90,.8);
   ctx.drawImage(dk,0,0);
   ctx.globalCompositeOperation='lighter';
   for(const l of lamps)if(l.on){const s=toScr(l.x,l.y,38),g=ctx.createRadialGradient(s.x,s.y,0,s.x,s.y,22);g.addColorStop(0,'rgba(255,200,110,.45)');g.addColorStop(1,'rgba(255,200,110,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(s.x,s.y,22,0,7);ctx.fill()}
   ctx.globalCompositeOperation='source-over';
+}
+function beam(s){
+  const N=30,a0=s.face-s.fov/2,s0=toScr(s.x,s.y),R=s.R*(blizOn?.8:1);
+  ctx.beginPath();ctx.moveTo(s0.x,s0.y);
+  for(let i=0;i<=N;i++){
+    const a=a0+s.fov*i/N;let d=0;
+    while(d<R&&!solidAt(s.x+Math.cos(a)*d,s.y+Math.sin(a)*d))d+=5;
+    const q=toScr(s.x+Math.cos(a)*d,s.y+Math.sin(a)*d);ctx.lineTo(q.x,q.y);
+  }
+  ctx.closePath();ctx.fillStyle=s.detect>.4?'rgba(255,240,200,.45)':'rgba(215,235,255,.32)';ctx.fill();
+}
+function drawPrints(){
+  const life=PRINT_LIFE[diff];
+  for(const q of prints){
+    const a=1-(tClock-q.t)/life;if(a<=0)continue;
+    const s=toScr(q.x,q.y);if(s.x<-10||s.x>VW+10||s.y<-10||s.y>VH+10)continue;
+    const o=q.side?1:-1;ctx.fillStyle=`rgba(40,55,85,${.6*a})`;ctx.beginPath();ctx.ellipse(s.x+o*3,s.y+o,3,1.6,0,0,7);ctx.fill();
+  }
+}
+function drawSnow(){
+  const n=blizOn?380:130,wx=blizOn?-170:-16;
+  ctx.fillStyle='rgba(255,255,255,.75)';
+  for(let i=0;i<n;i++){
+    const f=flakes[i];f.y+=f.v*(blizOn?2.4:1)*fdt;f.x+=(wx+Math.sin(tClock*.8+f.p)*14)*fdt;
+    if(f.y>VH){f.y=-4;f.x=Math.random()*VW}if(f.x<-4)f.x=VW+4;if(f.x>VW+4)f.x=-4;
+    ctx.fillRect(f.x,f.y,f.s,f.s);
+  }
+  if(blizOn){ctx.fillStyle='rgba(215,225,240,.13)';ctx.fillRect(0,0,VW,VH)}
 }
 function ell(p,R,mode){ctx.beginPath();ctx.ellipse(p.x,p.y,R*1.414,R*.707,0,0,7);mode==='f'?ctx.fill():ctx.stroke()}
 function bubble(x,y,s,col){ctx.font='12px Georgia';const w=ctx.measureText(s).width+10;ctx.fillStyle='rgba(15,12,8,.88)';ctx.fillRect(x-w/2,y-12,w,17);ctx.fillStyle=col||'#f3e7c3';ctx.fillText(s,x-w/2+5,y+1)}
@@ -687,8 +1039,10 @@ function draw(){
   ctx.drawImage(ground,cam.x,cam.y,VW,VH,0,0,VW,VH);
   // zona de salida
   {const ez=exitZ,P=[toScr(ez.x,ez.y),toScr(ez.x+ez.w,ez.y),toScr(ez.x+ez.w,ez.y+ez.h),toScr(ez.x,ez.y+ez.h)];poly(P,'rgba(90,170,80,.35)');
-   const s=toScr(ez.x+ez.w/2,ez.y+ez.h/2);ctx.fillStyle='#d6f0c8';ctx.font='bold 11px Georgia';ctx.fillText('SALIDA',s.x-18,s.y+3)}
+   const s=toScr(ez.x+ez.w/2,ez.y+ez.h/2);ctx.fillStyle='#d6f0c8';ctx.font='bold 11px Georgia';ctx.fillText(L.exitLabel||'SALIDA',s.x-18,s.y+3)}
+  if(L.prints)drawPrints();
   for(const e of enemies)if(!e.dead)cone(e);
+  for(const s of spots)if(s.on)beam(s);
   for(const it of sortItems(statics.concat(dynItems())))it.d();
   drawDark();
   // enemigos: estado
@@ -707,6 +1061,7 @@ function draw(){
     const hd=toScr(c.x,c.y,40);
     if(c.chan){ctx.fillStyle='#000';ctx.fillRect(hd.x-16,hd.y-8,32,5);ctx.fillStyle='#ffe27a';ctx.fillRect(hd.x-16,hd.y-8,32*(1-c.chan.t/c.chan.total),5);ctx.fillStyle='#fff';ctx.font='11px Georgia';ctx.fillText(c.chan.label,hd.x-32,hd.y-12)}
     if(c.disguise){ctx.fillStyle='#bfe0a0';ctx.font='10px Georgia';ctx.fillText('disfrazado',f.x-22,f.y+16)}
+    else if(c.rail&&L.railZone&&L.railZone(c)){ctx.fillStyle='#bfe0a0';ctx.font='10px Georgia';ctx.fillText('ferroviario',f.x-22,f.y+16)}
     else if(lit(c)){ctx.fillStyle='#ffe9a0';ctx.font='10px Georgia';ctx.fillText('a la luz',f.x-16,f.y+16)}
   });
   if(marker){const m=toScr(marker.x,marker.y);ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(m.x,m.y,(6+marker.t*8)*1.4,(6+marker.t*8)*.7,0,0,7);ctx.stroke()}
@@ -714,6 +1069,7 @@ function draw(){
     if(f.k==='tr'){const a=toScr(f.x1,f.y1,14),b=toScr(f.x2,f.y2,14);ctx.strokeStyle='#ffe9a0';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke()}
     else if(f.k==='boom'){const r=(1-f.t)*160,s=toScr(f.x,f.y);ctx.fillStyle=`rgba(255,${150*f.t|0},40,${f.t*.7})`;ell(s,r,'f')}
     else if(f.k==='stone'||f.k==='x'){const s=toScr(f.x,f.y);ctx.strokeStyle=`rgba(255,255,255,${f.t*2})`;ctx.lineWidth=2;ell(s,(.5-f.t+.1)*40,'s')}
+    else if(f.k==='smoke'){const s=toScr(f.x,f.y,34+(1.2-f.t)*34);ctx.fillStyle=`rgba(210,215,225,${f.t*.45})`;ctx.beginPath();ctx.arc(s.x,s.y,5+(1.2-f.t)*10,0,7);ctx.fill()}
     else if(f.k==='bark'&&!f.e.dead){const s=toScr(f.e.x,f.e.y,48);bubble(s.x,s.y,f.s,f.e.state==='alert'?'#ff9a8a':'#f3e7c3')}
   }
   const c=cur();
@@ -722,6 +1078,7 @@ function draw(){
     if(rng){ctx.strokeStyle='rgba(255,255,255,.38)';ctx.lineWidth=1.5;ctx.setLineDash([6,6]);ell(toScr(c.x,c.y),rng,'s');ctx.setLineDash([])}
     ctx.strokeStyle='#ffe27a';ctx.lineWidth=2;ctx.beginPath();ctx.arc(mouse.x,mouse.y,10,0,7);ctx.moveTo(mouse.x-14,mouse.y);ctx.lineTo(mouse.x+14,mouse.y);ctx.moveTo(mouse.x,mouse.y-14);ctx.lineTo(mouse.x,mouse.y+14);ctx.stroke();
   }
+  if(L.snow)drawSnow();
   drawHUD();drawMini();
   if(paused){ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(0,0,VW,VH);ctx.fillStyle='#fff';ctx.font='bold 36px Georgia';ctx.fillText('PAUSA',440,330)}
 }
@@ -733,15 +1090,17 @@ function drawMini(){
   ctx.strokeStyle='#ffe27a';ctx.lineWidth=1;ctx.strokeRect(MM.x+cam.x*MM.k,MM.y+cam.y*MM.k,VW*MM.k,VH*MM.k);
 }
 function drawHUD(){
-  ctx.fillStyle='rgba(20,16,10,.8)';ctx.fillRect(8,8,330,96);
+  const lines=L.hud(),hh=18+lines.length*18+20;
+  ctx.fillStyle='rgba(20,16,10,.8)';ctx.fillRect(8,8,350,hh);
   ctx.font='13px Georgia';
-  const L=[[depotDown,'Volar el almacén de munición (extremo este)'],[false,'Salir por el este con los tres'],[docs,'(Opc.) Plano de defensas: ayuntamiento'],[phoneCut,'(Opc.) Cortar el cable del teléfono']];
-  L.forEach(([d,s],i)=>{ctx.fillStyle=d?'#8fc27a':i>1?'#a79c80':'#e8dcc0';ctx.fillText((d?'✔ ':'• ')+s,16,26+i*18)});
+  lines.forEach(([d,s,opt],i)=>{ctx.fillStyle=d?'#8fc27a':opt?'#a79c80':'#e8dcc0';ctx.fillText((d?'✔ ':'• ')+s,16,28+i*18)});
   ctx.fillStyle='#a79c80';ctx.font='11px Georgia';
-  ctx.fillText(armed?'Acción activa: '+({knife:'cuchillo',shoot:'disparo',stone:'piedra'})[armed]+' (clic derecho cancela)':'Clic derecho: mover o entrar en una casa',16,98);
-  ctx.fillStyle='rgba(20,16,10,.8)';ctx.fillRect(842,8,150,34);
-  ctx.fillStyle=tLeft<90?'#ff7a6a':'#e8dcc0';ctx.font='11px Georgia';ctx.fillText('AMANECER EN',850,22);ctx.font='bold 16px Georgia';ctx.fillText(fmt(tLeft),850,38);
-  ctx.fillStyle='#a79c80';ctx.font='11px Georgia';ctx.fillText(DIFF[diff].name,942,38);
+  ctx.fillText(armed?'Acción activa: '+({knife:'cuchillo',shoot:'disparo',stone:'piedra'})[armed]+' (clic derecho cancela)':'Clic derecho: mover o entrar en una casa',16,8+hh-8);
+  L.timers().forEach(([lab,val,warn],i)=>{
+    const y=8+i*40;ctx.fillStyle='rgba(20,16,10,.8)';ctx.fillRect(812,y,180,34);
+    ctx.fillStyle=warn?'#ff7a6a':'#e8dcc0';ctx.font='11px Georgia';ctx.fillText(lab,820,y+14);ctx.font='bold 16px Georgia';ctx.fillText(val,820,y+30);
+    if(i===0){ctx.fillStyle='#a79c80';ctx.font='11px Georgia';ctx.fillText(DIFF[diff].name,942,y+30)}
+  });
   let y=620;for(let i=logs.length-1;i>=0;i--){ctx.font='13px Georgia';const w=ctx.measureText(logs[i].s).width+16;ctx.fillStyle=`rgba(20,16,10,${Math.min(.8,logs[i].t)})`;ctx.fillRect(8,y-14,w+4,20);ctx.fillStyle=`rgba(232,220,192,${Math.min(1,logs[i].t)})`;ctx.fillText(logs[i].s,16,y);y-=24}
 }
 
@@ -757,7 +1116,7 @@ function buildBar(){
 }
 function setT(id,s){$(id).querySelector('.t').textContent=s}
 function refreshUI(){
-  const c=cur(),u=usable(c);
+  const c=cur(),u=usable(c),m2=L.id==='m2';
   $('bK').disabled=!u||!c.knife;
   $('bF').disabled=!u||c.ammo===undefined||c.ammo<=0;setT('bF',c.ammo!==undefined?`Disparar (${c.ammo})`:'Disparar');
   $('bR').disabled=!u||c.stones===undefined||c.stones<=0;setT('bR',c.stones!==undefined?`Piedra (${c.stones})`:'Piedra');
@@ -765,7 +1124,9 @@ function refreshUI(){
   $('bC').disabled=!u;setT('bC',c.crouch?'Ponerse en pie':'Agacharse');
   $('bU').disabled=!u||(!c.disguise&&!bodies.some(b=>b.uniform&&dist(b,c)<32));setT('bU',c.disguise?'Quitarse uniforme':'Disfrazarse');
   $('bH').disabled=!u||!bodies.some(b=>dist(b,c)<32);
-  $('bX').disabled=!u||phoneCut||dist(c,pole)>34;
+  $('bX').disabled=!u||phoneCut||!pole||dist(c,pole)>34;
+  $('bL').style.display=m2?'':'none';
+  if(m2){$('bL').disabled=!(c.hidden&&c.inside&&c.inside.k==='signal'&&!c.dead);setT('bL',switchSiding?'Palanca: vía muerta':'Palanca: vía principal')}
   $('bK').classList.toggle('on',armed==='knife');$('bF').classList.toggle('on',armed==='shoot');$('bR').classList.toggle('on',armed==='stone');
   const cards=$('bar').children;
   chars.forEach((ch,i)=>{const k=cards[i];if(!k)return;k.querySelector('.hp i').style.width=ch.hp+'%';k.classList.toggle('dead',ch.dead);k.classList.toggle('sel',i===sel);
@@ -775,22 +1136,23 @@ function overlay(html){$('ovbox').innerHTML=html;$('ov').style.display='flex'}
 const PK='espana_progress',RANK={'Fantasma':3,'Profesional':2,'Ruidoso, pero lo lograste':1};
 function loadProg(){try{return JSON.parse(localStorage.getItem(PK))||{}}catch(e){return{}}}
 function recordWin(rating,t){
-  const pr=loadProg(),o=pr.m1;
-  if(!o||RANK[rating]>RANK[o.rating]||(RANK[rating]===RANK[o.rating]&&t<o.time))pr.m1={rating,time:Math.round(t),diff:DIFF[diff].name};
+  const pr=loadProg(),o=pr[L.id];
+  if(!o||RANK[rating]>RANK[o.rating]||(RANK[rating]===RANK[o.rating]&&t<o.time))pr[L.id]={rating,time:Math.round(t),diff:DIFF[diff].name};
   try{localStorage.setItem(PK,JSON.stringify(pr))}catch(e){}
 }
 const MISSIONS=[
   {id:'m1',n:1,title:'Belchite',date:'24 de agosto de 1937',desc:'Vuela el almacén de munición y escapa antes del amanecer.',open:true},
-  {id:'m2',n:2,title:'La estación de Teruel',date:'diciembre de 1937',desc:'Un tren de suministros cruza la sierra. Detenlo antes de que llegue al frente.'},
+  {id:'m2',n:2,title:'La estación de Teruel',date:'diciembre de 1937',desc:'Libera al maquinista, desvía el tren blindado a la vía muerta y vuélalo. Las huellas en la nieve te delatan.',open:true},
   {id:'m3',n:3,title:'El puente sobre el Ebro',date:'julio de 1938',desc:'Asegura el puente antes del cruce y evita que lo destruyan.'},
   {id:'m4',n:4,title:'El aeródromo',date:'1938',desc:'Infíltrate en una base aérea de retaguardia y deja a los aparatos en tierra.'}
 ];
+function startMission(id){curM=MS[id];init();brief()}
 function missionMenu(){
   gs='brief';paused=false;const pr=loadProg();
   overlay(`<h2>Misiones</h2><p><small>Elige una operación.</small></p><div class="mlist">`+MISSIONS.map(m=>{
     const r=pr[m.id];
     return `<div class="mcard ${m.open?'ok':'lock'}" data-m="${m.id}"><div class="n">${m.n}</div><div><b>${m.title} <small style="font-weight:400;color:var(--mute)">· ${m.date}</small></b><span>${m.open?m.desc:'Próximamente. '+m.desc}</span>${r?`<em>Mejor resultado: ${r.rating} · ${fmt(r.time)} · ${r.diff}</em>`:''}</div></div>`}).join('')+`</div><button id="backT">Volver al título</button>`);
-  document.querySelectorAll('.mcard.ok').forEach(c=>c.onclick=()=>brief());
+  document.querySelectorAll('.mcard.ok').forEach(c=>c.onclick=()=>startMission(c.dataset.m));
   $('backT').onclick=titleScreen;
 }
 function titleScreen(){
@@ -798,12 +1160,7 @@ function titleScreen(){
   $('play').onclick=()=>{ac();missionMenu()};
 }
 function brief(){
-  overlay(`<p style="letter-spacing:.3em;color:var(--mute);margin:0;font-size:12px">ESPAÑA · MISIÓN 1</p><h2>Belchite, 23-24 de agosto de 1937</h2>
-  <h3>Contexto histórico</h3>
-  <p>El Ejército Popular de la República lanza en agosto de 1937 la ofensiva de Zaragoza. Belchite, un pueblo aragonés convertido en bastión por la guarnición sublevada, es uno de sus primeros objetivos. Caerá el 6 de septiembre tras días de combates casa por casa. Su casco viejo quedó en ruinas y hoy se conserva como memorial.</p>
-  <h3>La misión (ficticia)</h3>
-  <p>Un minero asturiano, un tirador aragonés y una enlace que conoce cada calleja se infiltran de madrugada. Deben <b>volar el almacén de munición</b> y <b>escapar por el este antes del amanecer</b>. Si hay tiempo: recuperar el plano de defensas del ayuntamiento y cortar el teléfono para que no se propague la alarma.</p>
-  <p><small>Marco histórico real; los personajes son arquetipos de la época. La ametralladora de la plaza, las farolas y los cuerpos descubiertos son tus mayores peligros. Los uniformes de los soldados abatidos pueden ayudarte a pasar desapercibido.</small></p>
+  overlay(L.brief()+`
   <p><small>${gfxNote()}</small></p>
   <h3>Dificultad</h3>
   <div class="diff"><button data-d="1">Fácil</button><button data-d="2">Normal</button><button data-d="3">Difícil</button></div>
@@ -815,13 +1172,14 @@ function brief(){
 }
 function end(win,why){
   gs=win?'won':'lost';if(win)sfx('ok');else sfx('lose');
-  const t=540-tLeft;
+  const t=L.limit-tLeft;
   const rating=!win?'':st.alarms===0&&st.shots===0?'Fantasma':st.alarms<=1?'Profesional':'Ruidoso, pero lo lograste';
   if(win)recordWin(rating,t);
   setTimeout(()=>{
-    overlay(win?`<h2>Misión cumplida</h2><p>El almacén ha saltado por los aires y el grupo ha cruzado la salida con todos sus miembros.</p>
+    if(gs!==(win?'won':'lost'))return;
+    overlay(win?`<h2>Misión cumplida</h2><p>${L.winText}</p>
       <h3>Informe</h3><ul><li>Valoración: <b>${rating}</b></li><li>Tiempo: ${fmt(t)} · Dificultad: ${DIFF[diff].name}</li><li>Alarmas: ${st.alarms} · Disparos: ${st.shots} · Enemigos abatidos: ${st.kills} · Cuerpos ocultados: ${st.hidden}</li>
-      <li>Plano de defensas: ${docs?'recuperado ✔':'no recuperado'} · Teléfono: ${phoneCut?'cortado ✔':'intacto'}</li></ul>
+      ${L.report()}</ul>
       <button class="main" id="again">Jugar de nuevo</button> <button id="menu" style="margin-left:10px">Menú de misiones</button>`
       :`<h2>Misión fracasada</h2><p>${why}</p><button class="main" id="again">Reintentar</button> <button id="menu" style="margin-left:10px">Menú de misiones</button>`);
     $('again').onclick=()=>{init();$('ov').style.display='none';gs='play'};$('menu').onclick=missionMenu;
@@ -833,28 +1191,28 @@ cv.addEventListener('mouseenter',()=>mouseIn=true);cv.addEventListener('mouselea
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 cv.addEventListener('mousemove',ev=>{mouse=pos(ev)});
 $('bK').onclick=()=>arm('knife');$('bF').onclick=()=>arm('shoot');$('bR').onclick=()=>arm('stone');$('bE').onclick=plantDyn;
-$('bC').onclick=crouchToggle;$('bU').onclick=disguiseToggle;$('bH').onclick=hideBody;$('bX').onclick=cutWire;
+$('bL').onclick=leverPull;$('bC').onclick=crouchToggle;$('bU').onclick=disguiseToggle;$('bH').onclick=hideBody;$('bX').onclick=cutWire;
 $('bP').onclick=()=>{if(gs==='play')paused=!paused};
 $('bN').onclick=()=>{if(gs==='play')missionMenu()};
 $('bM').onclick=()=>{muted=!muted;setT('bM','Sonido: '+(muted?'no':'sí'))};
 $('bQ').onclick=()=>{init();$('ov').style.display='none';gs='play'};
 addEventListener('keydown',ev=>{
   const k=ev.key.toLowerCase();keys[k]=true;if(k.startsWith('arrow'))ev.preventDefault();
-  if(k>='1'&&k<='3'){const i=+k-1;if(!chars[i].dead){sel=i;armed=null;centerOn(chars[i])}}
+  if(k>='1'&&k<='4'&&chars[+k-1]){const i=+k-1;if(!chars[i].dead){sel=i;armed=null;centerOn(chars[i])}}
   else if(k==='k')arm('knife');else if(k==='f')arm('shoot');else if(k==='r')arm('stone');else if(k==='e')plantDyn();
-  else if(k==='c')crouchToggle();else if(k==='h')hideBody();else if(k==='u')disguiseToggle();else if(k==='x')cutWire();
+  else if(k==='c')crouchToggle();else if(k==='h')hideBody();else if(k==='u')disguiseToggle();else if(k==='x')cutWire();else if(k==='l')leverPull();
   else if(k==='escape')armed=null;else if(k==='q')centerOn(cur());
   else if(k===' '){ev.preventDefault();if(gs==='play')paused=!paused}
 });
 addEventListener('keyup',ev=>{keys[ev.key.toLowerCase()]=false});
 let last=performance.now();
 function loop(now){
-  const dt=Math.min(.05,(now-last)/1000);last=now;
+  const dt=Math.min(.05,(now-last)/1000);last=now;fdt=dt;
   if(gs==='play'&&!paused)update(dt);
   updCam(dt);draw();refreshUI();requestAnimationFrame(loop);
 }
 overlay('<h2>España</h2><p>Cargando gráficos…</p>');
-loadAssets().then(()=>{bakeAll();init();gs='brief';titleScreen();requestAnimationFrame(loop)});
+loadAssets().then(()=>{curM=M1;init();gs='brief';titleScreen();requestAnimationFrame(loop)});
 </script>
 </body>
 </html>

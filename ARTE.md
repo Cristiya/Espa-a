@@ -2,7 +2,7 @@
 
 Estilo decidido: **isométrico clásico** (tipo Commandos), **noche con luz cálida**, imágenes **generadas con IA** (o por un artista).
 
-El juego ya funciona sin ninguna imagen (todo se dibuja por código). Cada PNG que pongas en la carpeta `assets/` **sustituye automáticamente** a su dibujo por código. Puedes ir añadiéndolas poco a poco. En la pantalla de briefing verás `Gráficos: N de 41 imágenes cargadas`.
+El juego ya funciona sin ninguna imagen (todo se dibuja por código). Cada PNG que pongas en la carpeta `assets/` **sustituye automáticamente** a su dibujo por código. Puedes ir añadiéndolas poco a poco. En la pantalla de briefing verás `Gráficos: N de 53 imágenes cargadas`.
 
 ---
 
@@ -106,6 +106,33 @@ Direcciones (sufijo del nombre):
 | Cuerpo caído | `cuerpo_soldado.png` (64×32) | Soldado tumbado en isométrico |
 
 **Cómo mantener un personaje coherente en 4 direcciones:** genera una *hoja de personaje* con vistas de frente y espalda, y a partir de ella pide cada ángulo con la misma imagen como referencia. Si la IA falla con un ángulo, puedes **voltear horizontalmente** `se↔sw` y `ne↔nw` (conviene que el personaje sea casi simétrico, o aceptar que el fusil cambie de mano).
+
+
+### D. Misión 2 (Teruel, nieve) · texturas y personaje extra
+Mismas reglas que las texturas de la sección A (planas, seamless, sin sombras proyectadas). Ahora hay un ambiente de **invierno nocturno**: paleta azul-grisácea fría, nieve y hielo.
+
+| Archivo | Tamaño | Qué es |
+|---|---|---|
+| `tex_ground_snow.png` | 256×256 | Nieve virgen vista desde arriba, seamless, con grumos y matices azulados |
+| `tex_snow_trodden.png` | 256×256 | Nieve pisada y sucia (andén, caminos), seamless |
+| `tex_wall_station.png` | 256×192 | Muro de ladrillo rojizo de estación, vista frontal plana, seamless en horizontal |
+| `tex_wall_shed.png` | 256×192 | Muro de tablas grises (cobertizos, cabina de señales, cocheras), vista frontal plana |
+| `tex_roof_snow_a.png` | 256×256 | Tejado de casa cubierto de nieve, vista desde arriba, seamless |
+| `tex_roof_snow_b.png` | 256×256 | Variante con más teja asomando |
+| `tex_roof_station.png` | 256×256 | Tejado de estación: pizarra o teja oscura, con algo de nieve |
+| `tex_roof_signal.png` | 256×256 | Tejado de la cabina de señales, verde apagado o chapa |
+| `char_maquinista_se/sw/nw/ne.png` | 48×72 | Maquinista ferroviario: mono azul, gorra de visera, farol o llave inglesa. 4 direcciones como el resto de personajes |
+
+Prompts (con el prefijo común, añadiendo `winter night, snow, cold blue-grey palette`):
+```
+seamless tileable texture, orthographic top-down view, untouched snow with small clumps and ice, cold blue tint
+seamless tileable texture, orthographic top-down view, trampled dirty snow and mud, footpath
+seamless tileable texture, orthographic flat front view, reddish brick railway station wall, soot stains, no windows no doors
+seamless tileable texture, orthographic flat front view, weathered grey wooden plank wall, frost
+seamless tileable texture, orthographic top-down view, terracotta roof tiles covered in snow, some tiles showing
+isometric 2:1 view, full body small game character sprite, standing, facing down-right, 1930s Spanish railway worker, blue overalls, peaked cap, lantern, transparent background
+```
+> De momento el **tren, la locomotora, los carriles, la torre de agua, la dresina y el foco** se dibujan por código. Si quieres arte para ellos, dímelo y añado soporte de imágenes (`prop_locomotora`, `prop_vagon`, `prop_dresina`...).
 
 ---
 
