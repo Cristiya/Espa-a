@@ -12,17 +12,37 @@ El juego ya funciona sin ninguna imagen (todo se dibuja por código). Cada PNG q
 |---|---|
 | Proyección | Isométrica 2:1 (dimétrica). Una casilla = rombo de **64×32 px** en el arte. El juego lo reduce al 62,5 % (40×20 px en pantalla). |
 | Formato | PNG. Personajes y props con **fondo transparente**. Texturas sin transparencia. |
-| Iluminación | **Neutra y plana**, sin sombras proyectadas ni luces dentro de la imagen. El juego añade la oscuridad, las farolas y las sombras. |
+| Iluminación | Sombreado suave **sobre el propio objeto** (luz arriba-izquierda), pero **sin sombra proyectada en el suelo** ni luces ni oscuridad dentro de la imagen. El juego añade la noche, las farolas y las sombras. |
 | Paleta | Tierra, ocre, adobe, piedra gris, teja apagada. Tonos sucios y desaturados; el único color vivo es la luz cálida de las farolas (la pone el juego). |
 | Sin símbolos | Sin banderas, escudos ni insignias políticas legibles. Mantiene el foco en los personajes y evita problemas. |
 | Época | Aragón, agosto de 1937: pueblo de piedra y adobe, tejas árabes, calles de tierra, plaza empedrada. |
 
-**Truco para que el estilo salga coherente:** genera primero una imagen "de referencia" (una casa) y úsala como imagen de estilo (style reference / image prompt) en todas las demás.
+**Truco para que el estilo salga coherente:** genera primero una imagen "de referencia" (una casa) y úsala como imagen de estilo (style reference / image prompt) en todas las demás. Fija siempre la misma semilla (seed) o el mismo modelo/versión.
 
-### Prefijo de prompt común (en inglés, funciona mejor)
+### El look "táctico clásico" (tipo Commandos), descrito con rasgos
+Los juegos de esa época (1998-2003) se ven así porque los sprites se **prerenderizaban en 3D y se pintaban encima a mano**, con estos rasgos. Pídele a la IA justo esto:
+
+| Rasgo | Cómo pedirlo |
+|---|---|
+| Cámara | Isométrica 2:1, cámara alta (unos 30° sobre el horizonte), sin perspectiva cónica |
+| Acabado | Prerenderizado con texturas pintadas a mano, bordes nítidos, mucho detalle pequeño (grietas, tejas sueltas, manchas) |
+| Sombreado de forma | Luz suave desde arriba a la izquierda **sobre el propio objeto** (cara izquierda más clara, derecha más oscura). Sin sombra proyectada en el suelo: la pone el juego |
+| Personajes | Pequeños y legibles: silueta clara, ropa con 3-4 colores, pliegues marcados, cabeza y manos bien definidas; proporciones realistas, no de dibujo animado |
+| Paleta | Tierras, ocres, verdes apagados y rojos de teja. Sombras marrón-rojizas, nunca negro puro. Contraste medio-alto |
+| Terreno | Muy trabajado: tierra con piedras, hierba rala, barro, huellas de carro, losas desgastadas. Nada liso |
+| Ambiente | Realismo sucio de posguerra: muros desconchados, agujeros de metralla, sacos, alambre |
+
+### Prefijo de prompt común (en inglés, funciona mejor; sin nombres de juegos para poder publicar)
 ```
-hand-painted 2D game asset, muted earthy palette, Spanish Civil War era 1937, Aragon village, gritty realistic painted style like Commandos 2 and Desperados, flat neutral lighting, no cast shadows, no text, no flags or political symbols
+pre-rendered isometric tactical stealth game asset, 2:1 isometric camera, hand-painted textures over 3D render, late 1990s PC game look, crisp edges, rich fine detail, soft form shading lit from upper left, no ground cast shadow, muted earthy palette with warm reddish-brown shadows, Spanish Civil War 1937 Aragon village, gritty realism, no text, no flags or political symbols
 ```
+Para personajes añade: `small readable sprite, realistic proportions, strong silhouette, 3/4 view`. Para texturas añade: `seamless tileable, orthographic flat view, heavily detailed and weathered`.
+
+### Herramientas que suelen dar bien este estilo
+- **Midjourney** o **Leonardo**: usa la imagen de referencia (`--sref` / Image Guidance) y la misma semilla. Pide cada pieza sobre fondo liso y quita el fondo después.
+- **Scenario** o **Stable Diffusion** con un LoRA isométrico: más control para mantener el mismo estilo en las 40 piezas.
+- Quitar fondo: remove.bg, Photoshop o `rembg`. Escala después al tamaño de la tabla (genera a 2x o 4x y reduce: da más nitidez).
+- Revisa siempre la licencia de uso comercial de la herramienta antes de publicar.
 
 ---
 
